@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape money category</title>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="#403622"/>
+  <path d="M 8 12 C 8 8 24 8 24 12 C 24 16 8 16 8 12 Z M 8 12 L 8 21 C 8 25 24 25 24 21 L 24 12 M 8 17 C 8 21 24 21 24 17" fill="none" fill-rule="evenodd" stroke="#d8b66e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

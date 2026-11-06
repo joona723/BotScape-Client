@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape robot shield</title>
+  <path d="M 128 12 L 230 48 L 222 148 Q 213 207 128 246 Q 43 207 34 148 L 26 48 Z" fill="#e0a83a" fill-rule="evenodd"/>
+  <path d="M 128 29 L 213 59 L 206 146 Q 198 192 128 228 Q 58 192 50 146 L 43 59 Z" fill="#161a20" fill-rule="evenodd"/>
+  <path d="M 128 38 L 203 65 L 197 145 Q 189 184 128 218 Q 67 184 59 145 L 53 65 Z" fill="none" fill-rule="evenodd" stroke="#765d32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 73 56 L 128 37 L 183 56" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 128 68 L 128 85" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="128" cy="64" r="9" fill="#e0a83a"/>
+  <rect x="63" y="110" width="12" height="34" rx="5" fill="#e0a83a"/>
+  <rect x="181" y="110" width="12" height="34" rx="5" fill="#e0a83a"/>
+  <rect x="76" y="88" width="104" height="85" rx="20" fill="#e0a83a"/>
+  <rect x="88" y="102" width="80" height="45" rx="12" fill="#0f1115"/>
+  <rect x="101" y="114" width="13" height="18" rx="5" fill="#3fb96b"/>
+  <rect x="142" y="114" width="13" height="18" rx="5" fill="#3fb96b"/>
+  <path d="M 112 158 L 144 158" fill="none" fill-rule="evenodd" stroke="#161a20" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 115 192 L 128 203 L 141 192" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

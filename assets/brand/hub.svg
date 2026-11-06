@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape hub dashboard</title>
+  <rect x="16" y="16" width="224" height="224" rx="40" fill="#e0a83a"/>
+  <rect x="32" y="32" width="192" height="192" rx="24" fill="#161a20"/>
+  <rect x="48" y="48" width="64" height="64" rx="8" fill="#e0a83a"/>
+  <rect x="128" y="48" width="80" height="64" rx="8" fill="#e0a83a"/>
+  <rect x="48" y="128" width="64" height="80" rx="8" fill="#e0a83a"/>
+  <path d="M 136 128 L 208 168 L 136 208 Z" fill="#3fb96b" fill-rule="evenodd"/>
+</svg>

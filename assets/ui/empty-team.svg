@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape: team empty state</title>
+  <path d="M 37 137 L 203 137" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="80" cy="55" r="19" fill="#161a20" stroke="#8b919c" stroke-width="2.5"/>
+  <path d="M 46 126 L 46 112 Q 46 83 80 83 Q 114 83 114 112 L 114 126" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="155" cy="55" r="19" fill="#161a20" stroke="#e0a83a" stroke-width="2.5"/>
+  <path d="M 121 126 L 121 112 Q 121 83 155 83 Q 189 83 189 112 L 189 126" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 148 55 L 162 55 M 155 48 L 155 62" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 106 33 L 117 26 L 128 33" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

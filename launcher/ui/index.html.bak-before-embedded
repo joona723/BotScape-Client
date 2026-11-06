@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot Scape</title>
+<link rel="icon" href="/brand/logo-64.png">
+<style>
+  :root {
+    --page: #0f1115; --panel: #161a20; --card: #1d222a; --card-hover: #232a33; --border: #2a313b;
+    --text: #e6e8eb; --muted: #8b919c; --faint: #5d6470; --gold: #e0a83a; --gold-dim: #8a6420;
+    --green: #3fb96b; --green-dim: #1f5c37; --red: #e05a52; --blue: #5fb3f0; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--page); color: var(--text);
+    font: 14px/1.4 "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+  input { font: inherit; color: var(--text); background: var(--page); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; outline: none; }
+  input:focus { border-color: var(--gold-dim); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2b323d; border-radius: 5px; border: 2px solid var(--page); }
+
+  /* layout */
+  .app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+  header { display: flex; align-items: center; gap: 16px; padding: 0 20px; background: var(--panel);
+    border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; }
+  .brand img { width: 30px; height: 30px; }
+  .brand .name { color: var(--gold); font-size: 16px; }
+  .who { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; background: #1b2028; color: var(--muted); border: 1px solid var(--border); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .pill.on { color: #7fdca2; border-color: var(--green-dim); }
+  .pill.on .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .pill.off { color: #f0938d; border-color: #5c2a27; }
+  .pill.off .dot { background: var(--red); }
+  .spacer { flex: 1; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px;
+    background: var(--card); border: 1px solid var(--border); transition: background .15s, border-color .15s; }
+  .btn:hover { background: var(--card-hover); border-color: #3a4350; }
+  .btn img { width: 16px; height: 16px; }
+  .btn.primary { background: var(--green); border-color: var(--green); color: #07140c; font-weight: 600; }
+  .btn.primary:hover { background: #4fcc7c; }
+  .btn.gold { background: var(--gold); border-color: var(--gold); color: #1a1205; font-weight: 600; }
+  .btn.gold:hover { background: #f0b84a; }
+  .btn.danger:hover { border-color: var(--red); color: #f0938d; }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; }
+  .icon-btn:hover { background: #2a313b; }
+  .icon-btn img { width: 18px; height: 18px; }
+
+  .body { display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
+  aside { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    min-height: 0; }
+  .aside-scroll { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .section-title { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted);
+    font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 4px 2px 2px; }
+
+  /* character cards */
+  .char { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px;
+    cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
+  .char:hover { background: var(--card-hover); }
+  .char.selected { border-color: var(--gold-dim); box-shadow: 0 0 0 1px var(--gold-dim) inset; }
+  .char.locked { opacity: .55; }
+  .char .top { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+    color: #0f1115; flex: none; position: relative; }
+  .avatar .status { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--card); background: var(--faint); }
+  .avatar .status.online { background: var(--green); }
+  .avatar .status.error { background: var(--red); }
+  .char .name { font-weight: 600; font-size: 15px; }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #262c36; color: var(--muted); }
+  .chip.main { background: #3a2c12; color: var(--gold); }
+  .char .meta { font-size: 12px; color: var(--muted); }
+  .char .doing { margin-top: 8px; font-size: 12.5px; color: #7fdca2; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .bar { height: 5px; border-radius: 3px; background: #2a313b; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s; }
+  .char .stats { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; margin-top: 10px;
+    font-size: 12px; color: var(--muted); }
+  .char .actions { display: flex; gap: 6px; margin-top: 10px; }
+  .running { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 7px 9px; border-radius: 8px;
+    background: #15291d; border: 1px solid var(--green-dim); font-size: 12.5px; }
+  .running .time { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .clone-card { background: linear-gradient(135deg, #221a0c, var(--card)); border: 1px solid #3a2c12;
+    border-radius: var(--radius); padding: 14px; }
+  .clone-card .big { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: var(--muted);
+    user-select: none; }
+  .switch { width: 34px; height: 19px; border-radius: 999px; background: #2a313b; position: relative; transition: .2s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+    background: #9aa1ab; transition: .2s; }
+  .toggle.on .switch { background: var(--green-dim); }
+  .toggle.on .switch::after { left: 17px; background: var(--green); }
+
+  /* main area */
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border); background: var(--page); }
+  .tab { padding: 9px 14px 11px; color: var(--muted); border-bottom: 2px solid transparent; font-weight: 500; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--gold); }
+  .tab .count { font-size: 11px; color: var(--faint); margin-left: 4px; }
+  .view { flex: 1; min-height: 0; overflow: auto; padding: 20px; display: none; }
+  .view.active { display: block; }
+  .view.flush { padding: 0; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .toolbar input { width: 280px; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  .section-head { grid-column: 1/-1; display: flex; align-items: center; gap: 10px; margin: 6px 0 -2px; }
+  .section-head:not(:first-child) { margin-top: 18px; }
+  .section-head h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: .02em; }
+  .section-head .count { background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 1px 8px; font-size: 11.5px; color: var(--muted); }
+  .section-head .sub { color: var(--muted); font-size: 12px; flex: 1; }
+  .section-empty { grid-column: 1/-1; color: var(--muted); font-size: 13px; padding: 18px; text-align: center;
+    border: 1px dashed var(--border); border-radius: var(--radius); }
+  /* scripts */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .script { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
+    display: flex; flex-direction: column; gap: 10px; transition: border-color .15s, transform .15s; }
+  .script:hover { border-color: #3a4350; transform: translateY(-1px); }
+  .script.is-running { border-color: var(--green-dim); background: linear-gradient(180deg, #15291d, var(--card) 60%); }
+  .script .head { display: flex; align-items: center; gap: 10px; }
+  .script .head img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .badge { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: #232a33; flex: none; }
+  .script .title { font-weight: 600; font-size: 15px; }
+  .script .desc { color: var(--muted); font-size: 12.5px; min-height: 34px; display: -webkit-box;
+    -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .script .row { display: flex; gap: 8px; margin-top: auto; }
+  .run-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--green-dim); color: #7fdca2; font-weight: 600; font-size: 13px; }
+  .run-btn:hover { background: #15291d; }
+  .run-btn img { width: 14px; height: 14px; }
+  .stop-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid #5c2a27; color: #f0938d; font-weight: 600; font-size: 13px; }
+  .stop-btn:hover { background: #2a1513; }
+  .stop-btn img { width: 12px; height: 12px; }
+
+  /* output */
+  .console { font: 12.5px/1.55 "Cascadia Mono", Consolas, monospace; background: #0b0d10; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; height: calc(100% - 52px); overflow: auto; white-space: pre-wrap; }
+  .console .t { color: var(--faint); }
+  .console .w { font-weight: 700; }
+  .console .error { color: var(--red); }
+  .console .start { color: var(--gold); }
+  .console .stop { color: var(--muted); }
+  .filter { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .filter.on { color: var(--text); border-color: var(--gold-dim); background: #221a0c; }
+
+  /* skills */
+  .skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .skill { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; align-items: center; }
+  .skill img { width: 25px; height: 25px; image-rendering: pixelated; grid-row: span 2; }
+  .skill .lvl { font-weight: 700; font-size: 18px; color: var(--gold); }
+  .skill .bar { grid-column: 2 / 4; }
+  .skill .bar > div { background: var(--gold); }
+
+  /* character view */
+  #skills > .cats { margin-bottom: 14px; }
+  .filter .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .who-card { display: flex; align-items: center; gap: 18px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .who-card .avatar .status { border-color: var(--card); }
+  .who-main b { display: block; font-size: 16px; }
+  .who-main span { color: var(--muted); font-size: 12.5px; }
+  .kv span { display: block; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+  .kv b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .kv b.gold { color: var(--gold); }
+  .char-layout { display: grid; grid-template-columns: 1fr 292px; gap: 18px; align-items: start; }
+  .char-layout.no-side { grid-template-columns: 1fr; }
+  .char-layout .section-head { margin: 0 0 10px; }
+  .char-layout .training + .section-head { margin-top: 20px; }
+  .training { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .train { display: flex; gap: 12px; align-items: center; background: linear-gradient(135deg, #221a0c, var(--card) 70%);
+    border: 1px solid #3a2c12; border-radius: var(--radius); padding: 12px 14px; }
+  .train.fresh { border-color: var(--gold-dim); box-shadow: 0 0 0 1px #8a642055 inset; }
+  .train > img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .t-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .t-top { display: flex; align-items: baseline; gap: 8px; }
+  .t-top .lvl { font-weight: 700; color: var(--gold); font-size: 16px; }
+  .train .bar > div { background: var(--gold); }
+  .t-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .t-stats b { color: var(--text); }
+  .skill.trained { border-color: #3a2c12; }
+  .skill .rate { font-size: 11px; color: var(--gold); }
+  .skill .lvl .up { color: var(--green); } .skill .lvl .down { color: var(--red); }
+  .skill .lvl .of { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .panel-title { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+  .panel-title span { letter-spacing: 0; font-weight: 400; }
+  .worn { display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; justify-content: center; }
+  .inv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .slot { height: 48px; border-radius: 8px; background: #161a20; border: 1px solid #262c36; position: relative;
+    display: grid; place-items: center; }
+  .worn .slot { height: 52px; }
+  .slot img { max-width: 34px; max-height: 30px; image-rendering: pixelated; }
+  .slot img.ph { opacity: .18; filter: grayscale(1); }
+  .slot .n { position: absolute; left: 4px; top: 1px; font: 700 11.5px "Segoe UI"; color: #ffff00; text-shadow: 1px 1px 0 #000; }
+  .slot .n.k { color: #fff; } .slot .n.m { color: #00ff80; }
+  .slot[data-name]:hover { border-color: #3a4350; }
+  .slot[data-name]:hover::after { content: attr(data-name); position: absolute; bottom: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); background: #000d; padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 3; }
+  @media (max-width: 1100px) { .char-layout { grid-template-columns: 1fr; } .side { position: static; flex-direction: row; flex-wrap: wrap; } }
+
+  /* bank */
+  .bank { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; height: 64px; position: relative;
+    display: grid; place-items: center; }
+  .item img { max-width: 36px; max-height: 32px; image-rendering: pixelated; }
+  .item .n { position: absolute; left: 5px; top: 2px; font: 700 12px "Segoe UI"; color: #ffff00; text-shadow: 1px 1px 0 #000; }
+  .item .n.k { color: #fff; } .item .n.m { color: #00ff80; }
+  .item:hover::after { content: attr(data-name); position: absolute; bottom: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); background: #000d; padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 2; }
+
+  /* highscores */
+  .skill-picker { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skill-picker button { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+    border: 1px solid transparent; }
+  .skill-picker button:hover { background: var(--card); }
+  .skill-picker button.on { background: #221a0c; border-color: var(--gold-dim); }
+  .skill-picker img { width: 21px; height: 21px; image-rendering: pixelated; }
+  table.hs { width: 100%; max-width: 900px; border-collapse: collapse; }
+  .hs th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .06em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .hs td { padding: 10px 12px; border-bottom: 1px solid #1d222a; }
+  .hs tr:hover td { background: var(--card); }
+  .hs tr.me td { background: #221a0c; }
+  .hs .rank { color: var(--muted); width: 60px; font-variant-numeric: tabular-nums; }
+  .hs .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .hs .medal { font-weight: 700; color: var(--gold); }
+  iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
+
+  /* empty states and setup */
+  .empty { display: grid; place-items: center; text-align: center; color: var(--muted); padding: 60px 20px; gap: 10px; }
+  .empty img { width: 240px; opacity: .9; }
+  .empty h3 { margin: 0; color: var(--text); font-size: 17px; }
+  .setup { position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
+    background: linear-gradient(90deg, #0f1115ee 0%, #0f111599 45%, #0f111522 100%),
+                url("/ui/hero.png") center / cover no-repeat, #0f1115; }
+  .setup.show { display: grid; }
+  .setup .box { width: 460px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+  .setup h2 { margin: 0 0 4px; }
+  .setup label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+  .setup input { width: 100%; }
+  .error-text { color: #f0938d; font-size: 13px; min-height: 18px; margin-top: 10px; }
+  .settings { max-width: 560px; display: flex; flex-direction: column; gap: 14px; }
+  .settings .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .settings h4 { margin: 0 0 10px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: #1d222a; border: 1px solid var(--border); padding: 10px 16px; border-radius: 10px; transition: .25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  /* right-click menus (characters and scripts) */
+  .ctx { position: fixed; z-index: 80; min-width: 230px; max-width: 300px; padding: 6px; border-radius: 10px;
+    background: #1a1f26; border: 1px solid #343c48; box-shadow: 0 12px 32px #000a, 0 0 0 1px #0006;
+    font-size: 13.5px; opacity: 0; transform: scale(.97); transform-origin: top left;
+    transition: opacity .1s, transform .1s; outline: none; }
+  .ctx.show { opacity: 1; transform: none; }
+  .ctx .ctx-head { display: flex; align-items: center; gap: 10px; padding: 6px 8px 9px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--border); }
+  .ctx .ctx-head .avatar { width: 28px; height: 28px; font-size: 13px; }
+  .ctx .ctx-head .avatar .status { width: 10px; height: 10px; border-color: #1a1f26; }
+  .ctx .ctx-head b { display: block; font-size: 14px; }
+  .ctx .ctx-head span { color: var(--muted); font-size: 12px; }
+  .ctx-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 9px; border-radius: 7px;
+    text-align: left; white-space: nowrap; position: relative; }
+  .ctx-item:hover, .ctx-item.open, .ctx-item:focus-visible { background: #262d37; outline: none; }
+  .ctx-item .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; }
+  .ctx-item .ico img { max-width: 18px; max-height: 18px; image-rendering: pixelated; }
+  .ctx-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .ctx-item .kbd { color: var(--faint); font-size: 12px; }
+  .ctx-item .arrow { color: var(--muted); font-size: 11px; }
+  .ctx-item.green { color: #7fdca2; }
+  .ctx-item.red { color: #f0938d; }
+  .ctx-item.red:hover { background: #2a1513; }
+  .ctx-item.gold { color: var(--gold); }
+  .ctx-item:disabled { opacity: .4; cursor: default; background: none; }
+  .ctx-item.running::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 6px var(--green); }
+  .ctx-sep { height: 1px; background: var(--border); margin: 5px 4px; }
+  .ctx-label { color: var(--faint); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    padding: 6px 9px 3px; }
+  .ctx input.ctx-search { width: 100%; padding: 6px 9px; margin-bottom: 4px; font-size: 13px; }
+  .ctx .ctx-scroll { max-height: min(420px, 70vh); overflow: auto; }
+  .ctx .ctx-none { color: var(--muted); padding: 8px 9px; font-size: 12.5px; }
+  .char .more { opacity: 0; transition: opacity .15s; }
+  .char:hover .more, .char .more.open { opacity: 1; }
+  .more-dots { font-size: 18px; line-height: 1; color: var(--muted); letter-spacing: 1px; }
+  .cats { display: flex; gap: 6px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><img id="logo" src="/family-32.png" alt=""><span class="name">BOT SCAPE</span>
+      <span class="who" id="mainName"></span></div>
+    <span class="pill" id="serverPill"><span class="dot"></span><span id="serverText">Connecting…</span></span>
+    <div class="spacer"></div>
+    <button class="btn" id="folderBtn" title="Open the scripts folder"><img src="/open-client-16.png" alt="">Scripts folder</button>
+    <button class="btn primary" id="clientBtn"><img src="/play-16.png" alt="" style="filter:brightness(0)">Play</button>
+  </header>
+  <div class="body">
+    <aside>
+      <div class="aside-scroll">
+        <div class="section-title"><span>Your team</span><span id="teamCount"></span></div>
+        <div id="team"></div>
+        <div class="clone-card" id="cloneCard"></div>
+      </div>
+    </aside>
+    <main>
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-view="scripts">Scripts</button>
+        <button class="tab" data-view="map">Live map</button>
+        <button class="tab" data-view="output">Output</button>
+        <button class="tab" data-view="skills">Character</button>
+        <button class="tab" data-view="bank">Bank <span class="count" id="bankCount"></span></button>
+        <button class="tab" data-view="hiscores">Highscores</button>
+        <button class="tab" data-view="settings">Settings</button>
+      </nav>
+      <section class="view active" id="view-scripts">
+        <div class="toolbar">
+          <input id="search" placeholder="Search scripts…">
+          <span class="hint" id="scriptHint"></span>
+          <div class="spacer"></div>
+          <button class="btn danger small" id="stopAll">Stop everyone</button>
+        </div>
+        <div class="cats" id="cats" style="margin:-4px 0 16px"></div>
+        <div class="grid" id="scripts"></div>
+      </section>
+      <section class="view flush" id="view-map"><iframe id="mapFrame" title="Live map"></iframe></section>
+      <section class="view" id="view-output">
+        <div class="toolbar" id="filters"></div>
+        <div class="console" id="console"></div>
+      </section>
+      <section class="view" id="view-skills"><div id="skills"></div></section>
+      <section class="view" id="view-bank"><div id="bank"></div></section>
+      <section class="view" id="view-hiscores">
+        <div class="toolbar"><div class="skill-picker" id="hsSkills"></div></div>
+        <div id="hiscores"></div>
+      </section>
+      <section class="view" id="view-settings">
+        <div class="settings">
+          <div class="card">
+            <h4>Server</h4>
+            <div class="hint">The address of the Bot Scape server you play on.</div>
+            <div style="display:flex;gap:8px;margin-top:10px"><input id="serverInput" style="flex:1">
+              <button class="btn" id="serverSave">Save</button></div>
+          </div>
+          <div class="card">
+            <h4>Your character</h4>
+            <div class="hint" id="accountHint"></div>
+            <div style="margin-top:10px"><button class="btn" id="accountChange">Change character</button></div>
+          </div>
+          <div class="card">
+            <h4>Clones</h4>
+            <div class="toggle" id="autoToggle"><span class="switch"></span>Make a clone automatically every 100 total levels</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="setup" id="setup">
+  <div class="box">
+    <img src="/brand/lockup-600.png" alt="Bot Scape" id="setupLockup" style="width:260px;margin-bottom:8px" onerror="this.remove()">
+    <h2>Welcome to Bot Scape</h2>
+    <div class="hint">Your character plays itself with scripts. Every 100 total levels unlock a clone that shares your bank and experience.</div>
+    <label for="setupName">Character name</label>
+    <input id="setupName" maxlength="12" placeholder="e.g. simba">
+    <label for="setupPass">Password</label>
+    <input id="setupPass" type="password" maxlength="20" placeholder="4-20 characters">
+    <label for="setupServer">Server address</label>
+    <input id="setupServer" placeholder="127.0.0.1">
+    <div class="error-text" id="setupError"></div>
+    <button class="btn gold" id="setupGo" style="width:100%;justify-content:center;margin-top:6px">Start playing</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WIKI = "https://oldschool.runescape.wiki/images/";
+const wikiFile = name => WIKI + encodeURIComponent(name.replace(/ /g, "_")) + ".png";
+// The wiki names the Runecrafting icon "Runecraft_icon".
+const skillIcon = skill => wikiFile((skill === "runecrafting" ? "Runecraft" : skill[0].toUpperCase() + skill.slice(1)) + "_icon");
+const COLORS = ["#5fb3f0", "#3fb96b", "#d77ee8", "#ef8a3c", "#4fc1b9", "#e8d27a", "#f07f9a"];
+const SKILLS = ["attack","hitpoints","mining","strength","agility","smithing","defence","herblore","fishing",
+  "ranged","thieving","cooking","prayer","crafting","firemaking","magic","fletching","woodcutting",
+  "runecrafting","slayer","farming","construction","hunter"];
+
+let data = null, selected = null, view = "scripts", outputAfter = 0, outputFilter = null, colors = {};
+const lines = [];
+
+function colorFor(name) {
+  if (data && name === data.main) return "#e0a83a";
+  if (!colors[name]) colors[name] = COLORS[Object.keys(colors).length % COLORS.length];
+  return colors[name];
+}
+function toast(text) {
+  const t = $("toast"); t.textContent = text; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+async function post(action, body = {}) {
+  const res = await fetch("/api/" + action, { method: "POST", body: JSON.stringify(body) });
+  const out = await res.json().catch(() => ({}));
+  if (out.error) toast(out.error);
+  setTimeout(refresh, 300);
+  return out;
+}
+function elapsed(started) {
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - started));
+  return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+function xpFor(level) {
+  let points = 0;
+  for (let l = 1; l < level; l++) points += Math.floor(l + 300 * Math.pow(2, l / 7));
+  return Math.floor(points / 4);
+}
+function fmtCount(n) {
+  if (n >= 10_000_000) return [Math.floor(n / 1e6) + "M", "m"];
+  if (n >= 100_000) return [Math.floor(n / 1e3) + "K", "k"];
+  return [n.toLocaleString(), ""];
+}
+
+// --- team ---------------------------------------------------------------------------------------
+function renderTeam() {
+  const team = $("team");
+  const chars = data.characters || [];
+  if (!selected || !chars.find(c => c.name === selected)) selected = data.main;
+  $("teamCount").textContent = `${chars.filter(c => c.status === "online").length} online`;
+  team.innerHTML = chars.map(c => {
+    const hpPct = c.maxHp ? Math.round(100 * c.hp / c.maxHp) : 0;
+    const status = c.status === "logging_in" ? "online" : c.status;
+    return `<div class="char ${c.name === selected ? "selected" : ""} ${c.unlocked ? "" : "locked"}" data-name="${esc(c.name)}">
+      <div class="top">
+        <div class="avatar" style="background:${colorFor(c.name)}">${esc(c.name[0].toUpperCase())}
+          <span class="status ${esc(status)}"></span></div>
+        <div style="min-width:0;flex:1">
+          <div style="display:flex;align-items:center;gap:6px"><span class="name">${esc(c.name)}</span>
+            <span class="chip ${c.role === "main" ? "main" : ""}">${esc(c.role)}</span></div>
+          <div class="meta">${c.unlocked ? esc(c.status === "online" ? (c.x ? `${c.x}, ${c.z}` : "online") : c.status) : "locked"}</div>
+        </div>
+        <button class="icon-btn more" data-more="${esc(c.name)}" title="More (or right-click the card)"><span class="more-dots">⋯</span></button>
+        ${c.unlocked ? `<button class="icon-btn" data-play="${esc(c.name)}" title="Play ${esc(c.name)} in the client"><img src="/open-client-24.png" alt=""></button>` : ""}
+      </div>
+      ${c.activity ? `<div class="doing" title="${esc(c.activity)}">${esc(c.activity)}</div>` : ""}
+      ${c.maxHp ? `<div class="stats"><div class="bar"><div style="width:${hpPct}%;background:${hpPct < 35 ? "#e05a52" : "#3fb96b"}"></div></div>
+        <span>HP ${c.hp}/${c.maxHp} · Total ${c.total}</span></div>` : ""}
+      ${c.script ? `<div class="running"><img src="/play-16.png" alt="" width="12">${esc(c.script)}
+        <span class="time" data-started="${c.started}">${elapsed(c.started)}</span>
+        <button class="icon-btn" data-stop="${esc(c.name)}" title="Stop" style="width:24px;height:24px"><img src="/stop-16.png" alt="" style="width:12px;height:12px"></button></div>` : ""}
+    </div>`;
+  }).join("") || `<div class="empty"><h3>No characters yet</h3></div>`;
+  team.querySelectorAll(".char").forEach(el => el.onclick = e => {
+    if (e.target.closest("[data-play],[data-stop],[data-more]")) return;
+    selected = skillsWho = el.dataset.name; renderTeam(); renderScripts(); renderSkills();
+  });
+  team.querySelectorAll("[data-play]").forEach(el => el.onclick = () => post("client", { character: el.dataset.play }));
+  const charByName = name => (data.characters || []).find(c => c.name === name);
+  team.querySelectorAll(".char").forEach(el => el.oncontextmenu = e => {
+    e.preventDefault();
+    const c = charByName(el.dataset.name); if (c) openMenu(characterMenu(c), e.clientX, e.clientY);
+  });
+  team.querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
+    const c = charByName(el.dataset.more); if (!c) return;
+    const r = el.getBoundingClientRect();
+    openMenu(characterMenu(c), r.left, r.bottom + 4);
+    el.classList.add("open");
+  });
+  team.querySelectorAll("[data-stop]").forEach(el => el.onclick = () => post("stop", { character: el.dataset.stop }));
+
+  const f = data.family || {};
+  const total = f.totalLevel || 0, next = f.nextUnlockAt || 100, prev = next - 100;
+  const pct = Math.max(0, Math.min(100, (total - prev)));
+  const clones = (f.clones || []).length, unlocked = f.unlocked || 0;
+  $("cloneCard").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div><div class="hint">Family total level</div><div class="big">${total}</div></div>
+      <div style="text-align:right"><div class="hint">Clones</div><div class="big" style="color:var(--text)">${clones}<span class="hint"> / ${unlocked}</span></div></div>
+    </div>
+    <div class="bar" style="margin:10px 0 6px"><div style="width:${pct}%;background:var(--gold)"></div></div>
+    <div class="hint">Next clone at total level ${next} · ${Math.max(0, next - total)} to go</div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <button class="btn gold small" id="newClone" ${clones < unlocked ? "" : "disabled"}><img src="/clone-16.png" alt="" style="filter:brightness(0)">New clone</button>
+      <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone"><span class="switch"></span>Auto</div>
+    </div>`;
+  $("newClone").onclick = () => {
+    const name = prompt("Name for the new clone (max 12 letters):");
+    if (name) post("clone", { name }).then(r => r.ok && toast(`Clone ${name} made`));
+  };
+  $("autoClone").onclick = () => post("settings", { auto_clone: !data.autoClone });
+}
+
+// --- scripts ------------------------------------------------------------------------------------
+function renderScripts() {
+  const q = $("search").value.trim().toLowerCase();
+  const sel = (data.characters || []).find(c => c.name === selected);
+  $("scriptHint").innerHTML = sel ? `Runs on <b style="color:${colorFor(sel.name)}">${esc(sel.name)}</b>` : "";
+  const scripts = (data.scripts || []).filter(s => (!q || s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+    && (!category || categoryOf(s) === category));
+  const card = s => {
+    const running = sel && sel.script === s.name;
+    const icon = s.skill && SKILLS.includes(s.skill) ? `<img src="${skillIcon(s.skill)}" alt="" onerror="this.src='/scripts-24.png'">`
+      : `<img src="/scripts-24.png" alt="">`;
+    return `<div class="script ${running ? "is-running" : ""}" data-script="${esc(s.id)}">
+      <div class="head"><div class="badge">${icon}</div><div class="title">${esc(s.name)}</div></div>
+      <div class="desc">${esc(s.description || "No description.")}</div>
+      <div class="row">
+        ${running ? `<button class="stop-btn" data-stop="${esc(selected)}"><img src="/stop-16.png" alt="">Stop</button>`
+                  : `<button class="run-btn" data-run="${esc(s.id)}"><img src="/play-16.png" alt="">Run on ${esc(selected || "")}</button>`}
+        <button class="btn small" data-team="${esc(s.id)}" title="Run on every unlocked character">Run on team</button>
+      </div></div>`;
+  };
+  const packaged = scripts.filter(s => s.source === "botscape"), own = scripts.filter(s => s.source !== "botscape");
+  const ownTotal = (data.scripts || []).filter(s => s.source !== "botscape").length;
+  let html = `<div class="section-head"><h3>Bot Scape scripts</h3><span class="count">${packaged.length}</span>
+    <span class="sub">Included with the game and kept up to date.</span></div>`;
+  html += packaged.length ? packaged.map(card).join("") : `<div class="section-empty">${q ? "No Bot Scape scripts match." : "No scripts installed."}</div>`;
+  html += `<div class="section-head"><h3>My scripts</h3><span class="count">${own.length}</span>
+    <span class="sub">Your own .py scripts, in your scripts folder.</span>
+    <button class="btn small" id="ownFolder"><img src="/open-client-16.png" alt="">Open folder</button></div>`;
+  html += own.length ? own.map(card).join("") : `<div class="section-empty">${q && ownTotal ? "None of your scripts match."
+    : "No scripts of your own yet. Put a .py file in your scripts folder (start from <b>MyFirstScript.py</b>) and it shows up here."}</div>`;
+  $("scripts").innerHTML = html;
+  $("ownFolder").onclick = () => post("folder", {});
+  $("scripts").querySelectorAll("[data-run]").forEach(el => el.onclick = () => runScript(selected, el.dataset.run));
+  $("scripts").querySelectorAll("[data-stop]").forEach(el => el.onclick = () => post("stop", { character: el.dataset.stop }));
+  $("scripts").querySelectorAll("[data-team]").forEach(el => el.onclick = () => post("run-team", { script: el.dataset.team }));
+  $("scripts").querySelectorAll("[data-script]").forEach(el => el.oncontextmenu = e => {
+    e.preventDefault();
+    const s = (data.scripts || []).find(x => x.id === el.dataset.script); if (s) openMenu(scriptCardMenu(s), e.clientX, e.clientY);
+  });
+}
+
+// --- script categories --------------------------------------------------------------------------
+const CATEGORIES = [
+  ["gathering", "Gathering", ["mining", "woodcutting", "fishing", "hunter", "farming"]],
+  ["production", "Production", ["cooking", "crafting", "firemaking", "fletching", "herblore", "smithing",
+    "runecrafting", "construction"]],
+  ["combat", "Combat", ["attack", "strength", "defence", "ranged", "magic", "prayer", "hitpoints", "slayer"]],
+  ["support", "Support", ["agility", "thieving"]],
+  ["utility", "Utility", []],
+];
+const categoryOf = s => (CATEGORIES.find(([, , skills]) => skills.includes(s.skill)) || CATEGORIES[4])[0];
+let category = "";
+function renderCats() {
+  $("cats").innerHTML = [["", "All"], ...CATEGORIES.map(([id, label]) => [id, label])]
+    .map(([id, label]) => `<button class="filter ${category === id ? "on" : ""}" data-cat="${id}">${label}</button>`).join("");
+  $("cats").querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { category = b.dataset.cat; renderCats(); renderScripts(); });
+}
+function scriptIcon(s) {
+  return s.skill && SKILLS.includes(s.skill) ? `<img src="${skillIcon(s.skill)}" alt="" onerror="this.src='/scripts-16.png'">`
+    : `<img src="/scripts-16.png" alt="">`;
+}
+function avatarHtml(c) {
+  const status = c.status === "logging_in" ? "online" : c.status;
+  return `<div class="avatar" style="background:${colorFor(c.name)}">${esc(c.name[0].toUpperCase())}<span class="status ${esc(status)}"></span></div>`;
+}
+// Scripts a character ran lately (this computer only), newest first.
+function recentScripts(name) {
+  try { return JSON.parse(localStorage.getItem("recent:" + name) || "[]"); } catch (e) { return []; }
+}
+function runScript(name, id) {
+  try {
+    localStorage.setItem("recent:" + name, JSON.stringify([id, ...recentScripts(name).filter(r => r !== id)].slice(0, 3)));
+  } catch (e) {}
+  return post("run", { character: name, script: id });
+}
+
+// --- right-click menus --------------------------------------------------------------------------
+// An item: { label, icon, cls, kbd, disabled, run(), sub() -> items, search: true (on a submenu list) },
+// or { sep: true }, { title }, { html }.
+const menus = [];
+function closeMenus(depth = 0) {
+  while (menus.length > depth) menus.pop().remove();
+  document.querySelectorAll(".more.open").forEach(b => b.classList.remove("open"));
+}
+function openMenu(items, x, y, depth = 0, anchor = null) {
+  closeMenus(depth);
+  const el = document.createElement("div");
+  el.className = "ctx";
+  el.tabIndex = -1;
+  document.body.appendChild(el);
+  menus.push(el);
+  const fill = list => {
+    const scroll = el.querySelector(".ctx-scroll") || el;
+    scroll.innerHTML = "";
+    for (const it of list) {
+      if (it.sep) { scroll.insertAdjacentHTML("beforeend", `<div class="ctx-sep"></div>`); continue; }
+      if (it.title) { scroll.insertAdjacentHTML("beforeend", `<div class="ctx-label">${esc(it.title)}</div>`); continue; }
+      if (it.html) { scroll.insertAdjacentHTML("beforeend", it.html); continue; }
+      const b = document.createElement("button");
+      b.className = "ctx-item " + (it.cls || "");
+      b.disabled = !!it.disabled;
+      b.innerHTML = `<span class="ico">${it.icon || ""}</span><span class="label">${esc(it.label)}</span>`
+        + (it.kbd ? `<span class="kbd">${esc(it.kbd)}</span>` : "") + (it.sub ? `<span class="arrow">▶</span>` : "");
+      if (it.sub) {
+        const open = () => {
+          if (b.classList.contains("open")) return;
+          el.querySelectorAll(".ctx-item.open").forEach(o => o.classList.remove("open"));
+          b.classList.add("open");
+          const r = b.getBoundingClientRect();
+          openMenu(it.sub(), r.right + 2, r.top - 6, depth + 1, r);
+        };
+        b.onmouseenter = open; b.onclick = open; b.openSub = open;
+      } else {
+        b.onmouseenter = () => { closeMenus(depth + 1); el.querySelectorAll(".ctx-item.open").forEach(o => o.classList.remove("open")); };
+        b.onclick = () => { closeMenus(); it.run && it.run(); };
+      }
+      scroll.appendChild(b);
+    }
+    if (!scroll.querySelector(".ctx-item")) scroll.insertAdjacentHTML("beforeend", `<div class="ctx-none">Nothing matches.</div>`);
+  };
+  if (items.search) {
+    el.innerHTML = `<input class="ctx-search" placeholder="Type to filter…"><div class="ctx-scroll"></div>`;
+    const input = el.querySelector("input");
+    input.oninput = () => {
+      const q = input.value.trim().toLowerCase();
+      // Keep a section title only when one of its items matches.
+      const out = [];
+      let pendingTitle = null;
+      for (const it of items) {
+        if (it.title) { pendingTitle = it; continue; }
+        if (it.sep || (q && !it.label.toLowerCase().includes(q))) continue;
+        if (pendingTitle) { out.push(pendingTitle); pendingTitle = null; }
+        out.push(it);
+      }
+      fill(out);
+    };
+    input.onkeydown = e => { if (e.key === "Enter") { const first = el.querySelector(".ctx-item:not(:disabled)"); first && first.click(); } };
+    fill(items);
+    setTimeout(() => input.focus(), 0);
+  } else {
+    fill(items);
+    setTimeout(() => el.focus(), 0);
+  }
+  // Keep it on screen: flip a submenu to the left of its parent, push a menu up from the bottom edge.
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if (x + w > innerWidth - 8) x = anchor ? anchor.left - w - 2 : innerWidth - w - 8;
+  if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  el.style.left = Math.max(8, x) + "px"; el.style.top = y + "px";
+  requestAnimationFrame(() => el.classList.add("show"));
+  return el;
+}
+document.addEventListener("mousedown", e => { if (!e.target.closest(".ctx, .more")) closeMenus(); });
+window.addEventListener("resize", () => closeMenus());
+document.addEventListener("keydown", e => {
+  if (!menus.length) return;
+  const top = menus[menus.length - 1];
+  const items = [...top.querySelectorAll(".ctx-item:not(:disabled)")];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === "Escape") { e.preventDefault(); closeMenus(menus.length - 1); menus.length && menus[menus.length - 1].focus(); }
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const next = i < 0 ? items[e.key === "ArrowDown" ? 0 : items.length - 1]
+      : items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length];
+    next && next.focus();
+  } else if (e.key === "ArrowRight" && document.activeElement?.openSub) { e.preventDefault(); document.activeElement.openSub(); }
+  else if (e.key === "ArrowLeft" && menus.length > 1) {
+    e.preventDefault(); closeMenus(menus.length - 1);
+    const parent = menus[menus.length - 1].querySelector(".ctx-item.open");
+    parent && (parent.classList.remove("open"), parent.focus());
+  }
+});
+
+function scriptMenuItems(c) {
+  const scripts = data.scripts || [];
+  const item = s => ({ label: s.name, icon: scriptIcon(s), cls: c.script === s.name ? "running" : "",
+                       run: () => runScript(c.name, s.id) });
+  const out = [];
+  for (const [id, label] of CATEGORIES) {
+    const list = scripts.filter(s => s.source === "botscape" && categoryOf(s) === id);
+    if (list.length) out.push({ title: label }, ...list.map(item));
+  }
+  const own = scripts.filter(s => s.source !== "botscape");
+  if (own.length) out.push({ title: "My scripts" }, ...own.map(item));
+  out.search = true;
+  return out;
+}
+function characterMenu(c) {
+  const online = c.status === "online" || c.status === "logging_in";
+  const statusText = c.unlocked ? (c.script ? `${online ? "Online" : c.status} · running ${c.script}` : (online ? "Online" : c.status)) : "Locked";
+  const items = [
+    { html: `<div class="ctx-head">${avatarHtml(c)}<div><b>${esc(c.name)}</b><span>${esc(c.role)} · ${esc(statusText)}</span></div></div>` },
+    { label: `Open client as ${c.name}`, icon: `<img src="/open-client-16.png" alt="">`, cls: "gold", disabled: !c.unlocked,
+      run: () => post("client", { character: c.name }) },
+    { label: "Run script", icon: `<img src="/scripts-16.png" alt="">`, disabled: !c.unlocked, sub: () => scriptMenuItems(c) },
+  ];
+  const recent = recentScripts(c.name).map(id => (data.scripts || []).find(s => s.id === id)).filter(Boolean);
+  if (c.unlocked && recent.length) {
+    items.push({ title: "Run again" },
+      ...recent.map(s => ({ label: s.name, icon: scriptIcon(s), cls: c.script === s.name ? "running" : "green",
+                            run: () => runScript(c.name, s.id) })));
+  }
+  if (c.script) {
+    items.push({ sep: true },
+      { label: `Stop ${c.script}`, icon: `<img src="/stop-16.png" alt="">`, cls: "red", run: () => post("stop", { character: c.name }) });
+  }
+  items.push({ sep: true },
+    { label: "Show on live map", icon: `<img src="/map-16.png" alt="">`, disabled: !online, run: () => showOnMap(c.name) },
+    { label: "Show output", icon: `<span class="more-dots" style="font-size:13px">≡</span>`, run: () => showOutput(c.name) },
+    { label: "Copy name", icon: `<span class="more-dots" style="font-size:13px">⧉</span>`,
+      run: () => navigator.clipboard.writeText(c.name).then(() => toast("Copied " + c.name), () => toast(c.name)) });
+  if (online) {
+    items.push({ sep: true }, { label: "Log out", icon: `<img src="/stop-16.png" alt="">`, cls: "red",
+      run: () => post("logout", { character: c.name }).then(r => r.ok && toast(`${c.name} logged out`)) });
+  }
+  return items;
+}
+function scriptCardMenu(s) {
+  const chars = (data.characters || []).filter(c => c.unlocked);
+  const items = [{ html: `<div class="ctx-head"><div class="badge" style="width:28px;height:28px">${scriptIcon(s)}</div>
+      <div><b>${esc(s.name)}</b><span>${s.source === "botscape" ? "Bot Scape script" : "My script"}</span></div></div>` },
+    { title: "Run on" },
+    ...chars.map(c => ({ label: c.name, cls: c.script === s.name ? "running" : "",
+      icon: `<span style="width:10px;height:10px;border-radius:50%;background:${colorFor(c.name)}"></span>`,
+      kbd: c.script && c.script !== s.name ? c.script : "", run: () => runScript(c.name, s.id) })),
+    { label: "Whole team", icon: `<img src="/family-16.png" alt="">`, cls: "green", run: () => post("run-team", { script: s.id }) }];
+  const running = chars.filter(c => c.script === s.name);
+  if (running.length) {
+    items.push({ sep: true }, ...running.map(c => ({ label: `Stop on ${c.name}`, icon: `<img src="/stop-16.png" alt="">`, cls: "red",
+      run: () => post("stop", { character: c.name }) })));
+  }
+  return items;
+}
+function switchView(name) { document.querySelector(`.tab[data-view="${name}"]`).click(); }
+function showOnMap(name) {
+  switchView("map");
+  const frame = $("mapFrame");
+  // The map may still be loading the first time; ask again once it has the players.
+  const send = () => frame.contentWindow && frame.contentWindow.postMessage({ follow: name }, "*");
+  send(); setTimeout(send, 1200);
+}
+function showOutput(name) { outputFilter = name; renderFilters(); switchView("output"); }
+
+// --- skills and bank ----------------------------------------------------------------------------
+let skillsWho = null;   // a character's name, or "" for the whole family
+// The worn-equipment screen: equipment slot numbers laid out like the game's (null = gap).
+const WORN = [[null, 0, null], [1, 2, 13], [3, 4, 5], [null, 7, null], [9, 10, 12]];
+const SLOT_NAMES = { 0: "Head", 1: "Cape", 2: "Neck", 3: "Weapon", 4: "Body", 5: "Shield", 7: "Legs", 9: "Hands",
+  10: "Feet", 12: "Ring", 13: "Ammo" };
+const cap = s => s[0].toUpperCase() + s.slice(1);
+function fmtShort(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + "k";
+  return String(n);
+}
+function fmtDuration(sec) {
+  if (!isFinite(sec) || sec <= 0) return "";
+  if (sec < 60) return "<1m";
+  const m = Math.floor(sec / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d) return `${d}d ${h % 24}h`;
+  if (h) return `${h}h ${String(m % 60).padStart(2, "0")}m`;
+  return `${m}m`;
+}
+// The wiki draws coins by pile size and other stackables (arrows, runes) as "<name> 5".
+const COIN_PILES = [10000, 1000, 250, 100, 25, 5, 4, 3, 2, 1];
+function itemImg(name, count = 1) {
+  if (name === "Coins") return `<img src="${wikiFile("Coins " + COIN_PILES.find(n => count >= n))}" alt="" onerror="this.style.display='none'">`;
+  return `<img src="${esc(wikiFile(name))}" data-alt="${esc(wikiFile(name + " 5"))}" alt=""
+    onerror="if (this.dataset.alt) { this.src = this.dataset.alt; this.dataset.alt = ''; } else this.style.display = 'none'">`;
+}
+function itemSlot(item, empty = "") {
+  if (!item) return `<div class="slot">${empty}</div>`;
+  const [n, cls] = fmtCount(item.count);
+  return `<div class="slot" data-name="${esc(item.name)}${item.count > 1 ? " × " + item.count.toLocaleString() : ""}">
+    ${itemImg(item.name, item.count)}
+    ${item.count > 1 ? `<span class="n ${cls}">${n}</span>` : ""}</div>`;
+}
+function renderSkills() {
+  const chars = (data.characters || []).filter(c => c.unlocked);
+  if (skillsWho === null || (skillsWho && !chars.find(c => c.name === skillsWho))) skillsWho = selected || data.main || "";
+  const who = chars.find(c => c.name === skillsWho);
+  const stats = (who && who.stats) || data.skills;
+  const xp = who ? who.xp : data.familyXp;
+  const picker = `<div class="cats">` + [`<button class="filter ${skillsWho ? "" : "on"}" data-who="">Family</button>`]
+    .concat(chars.map(c => `<button class="filter ${skillsWho === c.name ? "on" : ""}" data-who="${esc(c.name)}">`
+      + `<span class="dot" style="background:${colorFor(c.name)}"></span>${esc(c.name)}</button>`)).join("") + `</div>`;
+  if (!stats) {
+    $("skills").innerHTML = picker + `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>No one is online</h3>
+      <div>Skills are shared by the whole family; they show while someone plays.</div></div>`;
+    bindWho();
+    return;
+  }
+  const online = who && who.stats;
+  const tracked = xp ? xp.skills : {};
+  const nextIn = (name, s) => {
+    const t = tracked[name];
+    return t && t.perHour > 0 && s.base < 99 ? fmtDuration((xpFor(s.base + 1) - s.xp) / t.perHour * 3600) : "";
+  };
+
+  // Who this is, and the xp tracker's totals.
+  let head;
+  if (who) {
+    head = `<div class="who-card">${avatarHtml(who)}
+      <div class="who-main"><b>${esc(who.name)}</b><span>${esc(who.role)} · ${online ? (who.script ? "running " + esc(who.script) : "online") : esc(who.status)}</span></div>
+      ${online ? `<div class="kv"><span>Combat</span><b>${who.combat}</b></div><div class="kv"><span>Total</span><b>${who.total}</b></div>
+        <div class="kv"><span>Hitpoints</span><b>${who.hp}/${who.maxHp}</b></div>
+        <div class="kv"><span>Run</span><b>${who.runEnergy ?? "?"}%</b></div>` : ""}`;
+  } else {
+    head = `<div class="who-card"><div class="avatar" style="background:var(--gold)"><img src="/family-24.png" alt="" style="width:20px;filter:brightness(0)"></div>
+      <div class="who-main"><b>${esc(data.main)}'s family</b><span>${chars.length} character${chars.length === 1 ? "" : "s"} · shared skills and bank</span></div>
+      <div class="kv"><span>Total</span><b>${data.family?.totalLevel ?? "?"}</b></div>`;
+  }
+  head += `<div class="spacer"></div>
+    <div class="kv"><span>${xp ? "Tracking " + elapsed(xp.since) : "Tracking"}</span><b>${xp ? fmtShort(xp.gained) + " xp" : "–"}</b></div>
+    <div class="kv"><span>XP / hour</span><b class="gold">${xp && xp.perHour ? fmtShort(xp.perHour) : "–"}</b></div>
+    <button class="icon-btn" id="xpReset" title="Reset the xp/h counters"><img src="/reload-16.png" alt=""></button></div>`;
+  if (xp && !xp.ownXp && who && chars.length > 1) {
+    head += `<div class="hint" style="margin:-6px 0 12px">The server doesn't say who earned what yet, so these are the family's shared gains.</div>`;
+  }
+
+  // Skills trained this session, most recent first.
+  const active = Object.entries(tracked).filter(([n]) => stats[n]).sort((a, b) => (b[1].lastGain || 0) - (a[1].lastGain || 0));
+  let training = "";
+  if (active.length) {
+    training = `<div class="section-head"><h3>Training now</h3><span class="count">${active.length}</span></div><div class="training">` + active.map(([name, t]) => {
+      const s = stats[name], lo = xpFor(s.base), hi = xpFor(s.base + 1);
+      const pct = s.base >= 99 ? 100 : Math.round(100 * (s.xp - lo) / Math.max(1, hi - lo));
+      const fresh = t.lastGain && Date.now() / 1000 - t.lastGain < 30;
+      const eta = nextIn(name, s);
+      return `<div class="train ${fresh ? "fresh" : ""}">
+        <img src="${skillIcon(name)}" alt="">
+        <div class="t-main"><div class="t-top"><b>${cap(name)}</b><span class="lvl">${s.base}</span>${s.base < 99 ? `<span class="hint">→ ${s.base + 1}</span>` : ""}
+          <span class="spacer"></span><span class="hint">${pct}%</span></div>
+          <div class="bar"><div style="width:${pct}%"></div></div>
+          <div class="t-stats"><span>+${t.gained.toLocaleString()} xp</span><span><b>${fmtShort(t.perHour)}</b> xp/h</span>
+            ${s.base < 99 ? `<span>${(hi - s.xp).toLocaleString()} xp left</span><span>${eta ? `level in <b>${eta}</b>` : ""}</span>` : `<span>Max level</span>`}</div></div></div>`;
+    }).join("") + `</div>`;
+  }
+
+  // Every skill.
+  const grid = `<div class="section-head"><h3>Skills</h3><span class="sub">${online ? "Boosted or drained levels show as current/base." : ""}</span></div>
+    <div class="skills">` + SKILLS.map(name => {
+    const s = stats[name]; if (!s) return "";
+    const lo = xpFor(s.base), hi = xpFor(s.base + 1);
+    const pct = s.base >= 99 ? 100 : Math.round(100 * (s.xp - lo) / Math.max(1, hi - lo));
+    const t = tracked[name], eta = nextIn(name, s);
+    const boosted = online && s.level !== s.base;
+    return `<div class="skill ${t ? "trained" : ""}" title="${s.xp.toLocaleString()} xp${s.base < 99 ? ` · ${(hi - s.xp).toLocaleString()} to level ${s.base + 1}` : ""}${t ? ` · ${t.perHour.toLocaleString()} xp/h` : ""}">
+      <img src="${skillIcon(name)}" alt=""><div>${cap(name)}${t ? `<div class="rate">${fmtShort(t.perHour)}/h${eta ? " · " + eta : ""}</div>` : ""}</div>
+      <div class="lvl">${boosted ? `<span class="${s.level > s.base ? "up" : "down"}">${s.level}</span><span class="of">/${s.base}</span>` : s.base}</div>
+      <div class="bar"><div style="width:${pct}%"></div></div></div>`;
+  }).join("") + `</div>`;
+
+  // Worn equipment and inventory.
+  let side = "";
+  if (who && online) {
+    const worn = Object.fromEntries((who.equipment || []).map(i => [i.slot, i]));
+    const inv = Object.fromEntries((who.inventory || []).map(i => [i.slot, i]));
+    side = `<div class="panel"><div class="panel-title">Worn equipment</div><div class="worn">`
+      + WORN.flat().map(slot => slot === null ? `<div></div>`
+        : itemSlot(worn[slot], `<img class="ph" src="${wikiFile(SLOT_NAMES[slot] + " slot")}" alt="" title="${SLOT_NAMES[slot]}" onerror="this.remove()">`)).join("")
+      + `</div></div>
+      <div class="panel"><div class="panel-title">Inventory<span>${(who.inventory || []).length}/28</span></div><div class="inv">`
+      + Array.from({ length: 28 }, (_, i) => itemSlot(inv[i])).join("") + `</div></div>`;
+  } else if (who) {
+    side = `<div class="panel"><div class="empty" style="padding:30px 10px"><h3>${esc(who.name)} is offline</h3>
+      <div>Inventory and equipment show while ${esc(who.name)} plays.</div></div></div>`;
+  }
+  $("skills").innerHTML = picker + head
+    + `<div class="char-layout ${side ? "" : "no-side"}"><div>${training}${grid}</div>${side ? `<div class="side">${side}</div>` : ""}</div>`;
+  bindWho();
+  $("xpReset").onclick = () => post("xp-reset", skillsWho ? { character: skillsWho } : {}).then(r => r.ok && toast("XP tracking reset"));
+}
+function bindWho() {
+  $("skills").querySelectorAll("[data-who]").forEach(b => b.onclick = () => { skillsWho = b.dataset.who; renderSkills(); });
+}
+function renderBank() {
+  const bank = data.bank;
+  $("bankCount").textContent = bank && bank.length ? bank.length : "";
+  if (!bank) {
+    $("bank").innerHTML = `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>No one is online</h3><div>The shared bank shows while someone in the family plays.</div></div>`;
+    return;
+  }
+  if (!bank.length) {
+    $("bank").innerHTML = `<div class="empty"><img src="/ui/empty-bank.svg" onerror="this.remove()" alt=""><h3>The bank is empty</h3></div>`;
+    return;
+  }
+  $("bank").innerHTML = `<div class="bank">` + bank.map(i => {
+    const [n, cls] = fmtCount(i.count);
+    return `<div class="item" data-name="${esc(i.name)} × ${i.count.toLocaleString()}">${itemImg(i.name, i.count)}
+      ${i.count > 1 ? `<span class="n ${cls}">${n}</span>` : ""}</div>`;
+  }).join("") + `</div>`;
+}
+
+// --- output ------------------------------------------------------------------------------------
+function renderFilters() {
+  const names = (data.characters || []).map(c => c.name);
+  $("filters").innerHTML = [`<button class="filter ${outputFilter ? "" : "on"}" data-f="">Everyone</button>`]
+    .concat(names.map(n => `<button class="filter ${outputFilter === n ? "on" : ""}" data-f="${esc(n)}">${esc(n)}</button>`)).join("")
+    + `<div class="spacer"></div><button class="btn small" id="clearOut">Clear</button>`;
+  $("filters").querySelectorAll("[data-f]").forEach(el => el.onclick = () => { outputFilter = el.dataset.f || null; renderFilters(); renderConsole(); });
+  $("clearOut").onclick = () => { lines.length = 0; renderConsole(); };
+}
+function lineHtml(l) {
+  return `<span class="t">${l.time} </span>${l.who ? `<span class="w" style="color:${colorFor(l.who)}">${esc(l.who)} </span>` : ""}<span class="${l.kind}">${esc(l.text)}</span>\n`;
+}
+function renderConsole() {
+  const el = $("console");
+  el.innerHTML = lines.filter(l => !outputFilter || l.who === outputFilter).map(lineHtml).join("")
+    || `<span class="t">Script output shows here.</span>`;
+  el.scrollTop = el.scrollHeight;
+}
+async function pollOutput() {
+  try {
+    const fresh = await (await fetch("/api/output?after=" + outputAfter)).json();
+    if (fresh.length) {
+      outputAfter = fresh[fresh.length - 1].id;
+      lines.push(...fresh);
+      if (lines.length > 4000) lines.splice(0, lines.length - 3000);
+      const el = $("console"), atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+      el.insertAdjacentHTML("beforeend", fresh.filter(l => !outputFilter || l.who === outputFilter).map(lineHtml).join(""));
+      if (atEnd) el.scrollTop = el.scrollHeight;
+    }
+  } catch (e) {}
+  setTimeout(pollOutput, 1000);
+}
+
+// --- highscores ---------------------------------------------------------------------------------
+let hsData = null, hsSkill = null, hsLoaded = 0;
+async function loadHiscores() {
+  if (Date.now() - hsLoaded < 15000 && hsData) return renderHiscores();
+  try { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); } catch (e) { hsData = { error: "Server offline" }; }
+  renderHiscores();
+}
+function renderHiscores() {
+  $("hsSkills").innerHTML = `<button class="${hsSkill ? "" : "on"}" data-s="" title="Overall"><img src="${wikiFile("Stats_icon")}" alt=""></button>`
+    + SKILLS.map(s => `<button class="${hsSkill === s ? "on" : ""}" data-s="${s}" title="${s[0].toUpperCase() + s.slice(1)}"><img src="${skillIcon(s)}" alt=""></button>`).join("");
+  $("hsSkills").querySelectorAll("[data-s]").forEach(b => b.onclick = () => { hsSkill = b.dataset.s || null; renderHiscores(); });
+  if (!hsData || hsData.error) {
+    $("hiscores").innerHTML = `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>Highscores unavailable</h3><div>${esc(hsData?.error || "")}</div></div>`;
+    return;
+  }
+  const me = (data?.main || "").toLowerCase();
+  const medal = i => i < 3 ? `<span class="medal">${["🥇","🥈","🥉"][i]}</span>` : i + 1;
+  if (!hsSkill) {
+    const rows = hsData.overall || [];
+    $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th>Clones</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${esc(r.name)}</td>
+        <td>${r.clones || ""}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("")
+      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No players yet</h3></div>`);
+  } else {
+    const rows = (hsData.skills || {})[hsSkill] || [];
+    $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Level</th><th class="num">XP</th></tr>`
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${esc(r.name)}</td>
+        <td class="num">${r.level}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")
+      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No one has trained ${esc(hsSkill)} yet</h3></div>`);
+  }
+}
+
+// --- header, settings, setup -------------------------------------------------------------------
+function renderHeader() {
+  $("mainName").textContent = data.main ? "· " + data.main : "";
+  const pill = $("serverPill");
+  pill.className = "pill " + (data.online ? "on" : "off");
+  $("serverText").textContent = data.online ? `Server online · ${data.ms} ms` : "Server offline";
+  $("clientBtn").innerHTML = `<img src="/play-16.png" alt="" style="filter:brightness(0)">Play ${esc(selected || data.main || "")}`;
+  $("serverInput").value ||= data.server || "127.0.0.1";
+  $("accountHint").textContent = `Playing as ${data.main}. Scripts live in bots/${data.main}/.`;
+  $("autoToggle").className = "toggle " + (data.autoClone ? "on" : "");
+  $("setup").classList.toggle("show", data.hasAccount === false);
+  $("setupServer").value ||= data.server || "127.0.0.1";
+  const frame = $("mapFrame");
+  if (view === "map" && data.mapUrl && frame.dataset.src !== data.mapUrl) { frame.src = data.mapUrl; frame.dataset.src = data.mapUrl; }
+}
+
+async function refresh() {
+  try {
+    data = await (await fetch("/api/overview")).json();
+  } catch (e) {
+    data = { online: false, characters: [], scripts: [] };
+  }
+  renderHeader();
+  if (data.characters) renderTeam();
+  renderScripts();
+  renderSkills();
+  renderBank();
+  if (view === "hiscores") loadHiscores();
+  if (!$("filters").children.length || $("filters").dataset.n != (data.characters || []).length) {
+    $("filters").dataset.n = (data.characters || []).length; renderFilters();
+  }
+}
+
+$("tabs").onclick = e => {
+  const tab = e.target.closest(".tab"); if (!tab) return;
+  view = tab.dataset.view;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
+  if (view === "output") renderConsole();
+  if (view === "hiscores") loadHiscores();
+  if (data) renderHeader();
+};
+$("search").oninput = renderScripts;
+renderCats();
+$("stopAll").onclick = () => post("stop-all");
+$("clientBtn").onclick = () => post("client", { character: selected || data.main });
+$("folderBtn").onclick = () => post("folder");
+$("serverSave").onclick = () => post("settings", { server: $("serverInput").value.trim() }).then(() => toast("Server saved"));
+$("autoToggle").onclick = () => post("settings", { auto_clone: !data.autoClone });
+$("accountChange").onclick = () => $("setup").classList.add("show");
+$("setupGo").onclick = async () => {
+  const out = await post("account", { main: $("setupName").value, password: $("setupPass").value });
+  if (out.ok) {
+    await post("settings", { server: $("setupServer").value.trim() || "127.0.0.1" });
+    $("setup").classList.remove("show");
+    toast("Welcome! Press ▶ on a script to start.");
+  } else {
+    $("setupError").textContent = out.error || "Something went wrong.";
+  }
+};
+setInterval(() => document.querySelectorAll("[data-started]").forEach(el => el.textContent = elapsed(+el.dataset.started)), 1000);
+// Prefer the Codex brand logo when it exists.
+for (const id of ["logo"]) {
+  const img = new Image(); img.onload = () => $(id).src = img.src; img.src = "/brand/logo-64.png";
+}
+refresh().then(() => {
+  const tab = document.querySelector(`.tab[data-view="${location.hash.slice(1)}"]`);
+  if (tab) tab.click();
+});
+setInterval(refresh, 1500); pollOutput();
+window.addEventListener("beforeunload", e => {
+  if ((data?.characters || []).some(c => c.script)) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BotScape Hub</title>
+<link rel="icon" type="image/x-icon" href="/brand/hub.ico">
+<style>
+  :root {
+    --page: #0f1115; --panel: #161a20; --card: #1d222a; --card-hover: #232a33; --border: #2a313b;
+    --text: #e6e8eb; --muted: #8b919c; --faint: #5d6470; --gold: #e0a83a; --gold-dim: #8a6420;
+    --green: #3fb96b; --green-dim: #1f5c37; --red: #e05a52; --blue: #5fb3f0; --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--page); color: var(--text);
+    font: 14px/1.4 "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+  input { font: inherit; color: var(--text); background: var(--page); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; outline: none; }
+  input:focus { border-color: var(--gold-dim); }
+  * { scrollbar-width: thin; scrollbar-color: #2b323d transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #2b323d; border-radius: 5px; border: 2px solid var(--page); }
+
+  /* layout */
+  .app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+  header { display: flex; align-items: center; gap: 16px; padding: 0 20px; background: var(--panel);
+    border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; }
+  .brand img { width: 30px; height: 30px; }
+  .brand .name { color: var(--gold); font-size: 16px; }
+  .who { color: var(--muted); font-weight: 400; letter-spacing: 0; }
+  .profile-btn { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--gold, #e0a83a); padding: 0;
+    overflow: hidden; cursor: pointer; background: #e0a83a; color: #1a1a1a; font-weight: 700; font-size: 16px;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .profile-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; background: #1b2028; color: var(--muted); border: 1px solid var(--border); }
+  .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+  .pill.on { color: #7fdca2; border-color: var(--green-dim); }
+  .pill.on .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .pill.off { color: #f0938d; border-color: #5c2a27; }
+  .pill.off .dot { background: var(--red); }
+  .spacer { flex: 1; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px;
+    background: var(--card); border: 1px solid var(--border); transition: background .15s, border-color .15s; }
+  .btn:hover { background: var(--card-hover); border-color: #3a4350; }
+  .btn img { width: 16px; height: 16px; }
+  .btn.primary { background: var(--green); border-color: var(--green); color: #07140c; font-weight: 600; }
+  .btn.primary:hover { background: #4fcc7c; }
+  .btn.gold { background: var(--gold); border-color: var(--gold); color: #1a1205; font-weight: 600; }
+  .btn.gold:hover { background: #f0b84a; }
+  .btn.danger:hover { border-color: var(--red); color: #f0938d; }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; }
+  .icon-btn:hover { background: #2a313b; }
+  .icon-btn img { width: 18px; height: 18px; }
+
+  .body { display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
+  aside { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    min-height: 0; }
+  .aside-scroll { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .rename-group { display: inline-grid; width: 20px; height: 20px; font-size: 12px; vertical-align: middle; opacity: .7; }
+  .rename-group:hover { opacity: 1; }
+  /* User-requested: a clear "Server offline" overlay with the hub blurred behind it. */
+  .offline-overlay { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center;
+    background: rgba(10, 12, 16, .45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .offline-overlay[hidden] { display: none; }
+  .offline-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 28px 36px;
+    text-align: center; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .offline-card h2 { margin: 12px 0 6px; color: var(--red); }
+  .offline-card p { margin: 6px 0; color: var(--text); }
+  .offline-spinner { width: 36px; height: 36px; margin: 0 auto; border: 3px solid var(--border);
+    border-top-color: var(--gold); border-radius: 50%; animation: offline-spin 1s linear infinite; }
+  @keyframes offline-spin { to { transform: rotate(360deg); } }
+  .team-tools { display: inline-flex; align-items: center; gap: 8px; }
+  /* Restart + Stop all on their own row under the title (side by side with it, the title got squeezed). */
+  .section-title:has(.team-tools) { flex-wrap: wrap; row-gap: 8px; }
+  .section-title .team-tools { flex-basis: 100%; }
+  .section-title .team-tools #teamCount { margin-right: auto; }
+  .section-title:has(.team-tools) { align-items: center; margin-bottom: 8px; }
+  /* User-reported: the STOP ALL button was chunky (wrapped onto two lines, a heavy glow ring, jumped on refresh). */
+  .btn.stop-everyone, .btn.run-everyone { color: #fff; font-weight: 700; white-space: nowrap; border-radius: 999px;
+    transition: background-color .15s, border-color .15s, filter .15s, transform .08s, opacity .15s; }
+  .btn.stop-everyone { background: var(--red); border-color: var(--red); }
+  .btn.run-everyone { background: var(--green); border-color: var(--green); }
+  .btn.stop-everyone:hover, .btn.run-everyone:hover { filter: brightness(1.12); color: #fff; }
+  .btn.stop-everyone:active, .btn.run-everyone:active { transform: scale(.96); }
+  .btn.stop-everyone.busy { opacity: .75; cursor: progress; pointer-events: none; }
+  .btn.stop-everyone.busy svg { animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* User-requested: Restart next to STOP ALL (every running script starts again: an updated AIO loads). */
+  .btn.restart-everyone { color: var(--text); font-weight: 700; white-space: nowrap; border-radius: 999px;
+    background: color-mix(in srgb, var(--card) 70%, transparent); border-color: var(--border);
+    transition: background-color .15s, border-color .15s, transform .08s, opacity .15s; }
+  .btn.restart-everyone:hover { border-color: var(--gold); color: var(--gold); }
+  .btn.restart-everyone:active { transform: scale(.96); }
+  .btn.restart-everyone.busy { opacity: .75; cursor: progress; pointer-events: none; }
+  .btn.restart-everyone.busy svg { animation: spin .9s linear infinite; }
+  /* User-requested: a clicked button shows it's doing something (spinner until the action answers). */
+  button { transition: transform .08s, opacity .15s, filter .15s; }
+  button:active:not(:disabled) { transform: scale(.96); }
+  button.is-busy { opacity: .75; cursor: progress; pointer-events: none; }
+  button.is-busy::after { content: ""; display: inline-block; width: .85em; height: .85em; margin-left: 6px; flex: none;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: -2px;
+    animation: btn-spin .7s linear infinite; }
+  @keyframes btn-spin { to { transform: rotate(360deg); } }
+
+  .team-tools .btn { padding: 5px 14px; font-size: 12px; gap: 6px; text-transform: none; letter-spacing: .02em; line-height: 1.2; }
+  .section-title { display: flex; justify-content: space-between; align-items: baseline; color: var(--muted);
+    font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin: 4px 2px 2px; }
+
+  /* character cards */
+  .char { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px;
+    cursor: pointer; transition: border-color .15s, background .15s; position: relative; }
+  .char:hover { background: var(--card-hover); }
+  .char.selected { border-color: var(--gold-dim); box-shadow: 0 0 0 1px var(--gold-dim) inset; }
+  .char.locked { opacity: .55; }
+  .char .top { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700;
+    color: #0f1115; flex: none; position: relative; }
+  .avatar .status { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--card); background: var(--faint); }
+  .avatar .status.online { background: var(--green); }
+  .avatar .status.error { background: var(--red); }
+  .char .name { font-weight: 600; font-size: 15px; }
+  .chip { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #262c36; color: var(--muted); }
+  .chip.main { background: #3a2c12; color: var(--gold); }
+  .char .meta { font-size: 12px; color: var(--muted); }
+  .char .doing { margin-top: 8px; font-size: 12.5px; color: #7fdca2; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .bar { height: 5px; border-radius: 3px; background: #2a313b; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s; }
+  .char .stats { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; margin-top: 10px;
+    font-size: 12px; color: var(--muted); }
+  .char .actions { display: flex; gap: 6px; margin-top: 10px; }
+  .running { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 7px 9px; border-radius: 8px;
+    background: #15291d; border: 1px solid var(--green-dim); font-size: 12.5px; }
+  .running .time { color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .gim-head { display: flex; align-items: center; gap: 10px; padding: 4px 2px 12px; margin-bottom: 8px;
+    border-bottom: 1px solid #2a2f37; }
+  .gim-badge { width: 28px; height: 28px; image-rendering: pixelated; }
+  .gim-title { font-weight: 700; color: #3fb96b; letter-spacing: .3px; }
+  .gim-sub { font-size: 12px; color: var(--muted); }
+  .gbank-head { display: flex; gap: 14px; align-items: center; background: linear-gradient(135deg, #12251a, var(--card));
+    border: 1px solid #23452f; border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+  .gbank-head img { width: 32px; height: 32px; image-rendering: pixelated; }
+  .gbank-head h3 { margin: 0 0 2px; font-size: 15px; color: #3fb96b; }
+  .gbank-head .hint { line-height: 1.4; }
+  .gbank-who { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .gbank-who span { font-size: 11px; padding: 1px 7px; border-radius: 9px; background: #1d232b; color: var(--text); }
+  .gbank-who span.on { background: #1d3a27; color: #8fe0a9; }
+  .clone-card { background: linear-gradient(135deg, #221a0c, var(--card)); border: 1px solid #3a2c12;
+    border-radius: var(--radius); padding: 14px; }
+  .clone-card .big { font-size: 22px; font-weight: 700; color: var(--gold); }
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: var(--muted);
+    user-select: none; }
+  .switch { width: 34px; height: 19px; border-radius: 999px; background: #2a313b; position: relative; transition: .2s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+    background: #9aa1ab; transition: .2s; }
+  .toggle.on .switch { background: var(--green-dim); }
+  .toggle.on .switch::after { left: 17px; background: var(--green); }
+
+  /* main area */
+  main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--border); background: var(--page); }
+  .tab { padding: 9px 14px 11px; color: var(--muted); border-bottom: 2px solid transparent; font-weight: 500; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--gold); }
+  .tab .count { font-size: 11px; color: var(--faint); margin-left: 4px; }
+  .tab-icon { width: 16px; height: 16px; vertical-align: middle; margin-right: 6px; opacity: .7; .tab:is(:hover, .active) & { opacity: 1; } }
+  .view { flex: 1; min-height: 0; overflow: auto; padding: 20px; display: none; }
+  .view.active { display: block; }
+  .view.flush { padding: 0; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .toolbar input { width: 280px; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  .section-head { grid-column: 1/-1; display: flex; align-items: center; gap: 10px; margin: 6px 0 -2px; }
+  .section-head:not(:first-child) { margin-top: 18px; }
+  .section-head h3 { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: .02em; }
+  .section-head .count { background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 1px 8px; font-size: 11.5px; color: var(--muted); }
+  .section-head .sub { color: var(--muted); font-size: 12px; flex: 1; }
+  .section-empty { grid-column: 1/-1; color: var(--muted); font-size: 13px; padding: 18px; text-align: center;
+    border: 1px dashed var(--border); border-radius: var(--radius); }
+  /* scripts */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .script { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
+    display: flex; flex-direction: column; gap: 10px; transition: border-color .15s, transform .15s; }
+  .script:hover { border-color: #3a4350; transform: translateY(-1px); }
+  .script.is-running { border-color: var(--green-dim); background: linear-gradient(180deg, #15291d, var(--card) 60%); }
+  .script .head { display: flex; align-items: center; gap: 10px; }
+  .script .head img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .badge { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: #232a33; flex: none; }
+  .script .title { font-weight: 600; font-size: 15px; }
+  .script .desc { color: var(--muted); font-size: 12.5px; min-height: 34px; display: -webkit-box;
+    -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .script .row { display: flex; gap: 8px; margin-top: auto; }
+  .run-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--green-dim); color: #7fdca2; font-weight: 600; font-size: 13px; }
+  .run-btn:hover { background: #15291d; }
+  .run-btn img { width: 14px; height: 14px; }
+  .stop-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid #5c2a27; color: #f0938d; font-weight: 600; font-size: 13px; }
+  .stop-btn:hover { background: #2a1513; }
+  .stop-btn img { width: 12px; height: 12px; }
+
+  /* output */
+  .console { font: 12.5px/1.55 "Cascadia Mono", Consolas, monospace; background: #0b0d10; border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; height: calc(100% - 52px); overflow: auto; white-space: pre-wrap; }
+  .console .t { color: var(--faint); }
+  .console .w { font-weight: 700; }
+  .console .error { color: var(--red); }
+  .console .start { color: var(--gold); }
+  .console .stop { color: var(--muted); }
+  .filter { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .filter.on { color: var(--text); border-color: var(--gold-dim); background: #221a0c; }
+
+  /* skills */
+  .skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .skill { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px;
+    display: grid; grid-template-columns: 28px 1fr auto; gap: 4px 10px; align-items: center; }
+  .skill img { width: 25px; height: 25px; image-rendering: pixelated; grid-row: span 2; }
+  .skill .lvl { font-weight: 700; font-size: 18px; color: var(--gold); }
+  .skill .bar { grid-column: 2 / 4; }
+  .skill .bar > div { background: var(--gold); }
+
+  /* character view */
+  #skills > .cats, #skills .sk-picker > .cats { margin-bottom: 14px; }
+  .filter .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .who-card { display: flex; align-items: center; gap: 18px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .who-card .avatar .status { border-color: var(--card); }
+  .who-main b { display: block; font-size: 16px; }
+  .who-main span { color: var(--muted); font-size: 12.5px; }
+  .kv span { display: block; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+  .kv b { font-size: 17px; font-variant-numeric: tabular-nums; }
+  .kv b.gold { color: var(--gold); }
+  .char-layout { display: grid; grid-template-columns: 1fr 292px; gap: 18px; align-items: start; }
+  .char-layout.no-side { grid-template-columns: 1fr; }
+  .char-layout .section-head { margin: 0 0 10px; }
+  .char-layout .training + .section-head { margin-top: 20px; }
+  .training { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+  .train { display: flex; gap: 12px; align-items: center; background: linear-gradient(135deg, #221a0c, var(--card) 70%);
+    border: 1px solid #3a2c12; border-radius: var(--radius); padding: 12px 14px; }
+  .train.fresh { border-color: var(--gold-dim); box-shadow: 0 0 0 1px #8a642055 inset; }
+  .train > img { width: 30px; height: 30px; image-rendering: pixelated; }
+  .t-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .t-top { display: flex; align-items: baseline; gap: 8px; }
+  .t-top .lvl { font-weight: 700; color: var(--gold); font-size: 16px; }
+  .train .bar > div { background: var(--gold); }
+  .t-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .t-stats b { color: var(--text); }
+  .skill.trained { border-color: #3a2c12; }
+  .skill .rate { font-size: 11px; color: var(--gold); }
+  .skill .lvl .up { color: var(--green); } .skill .lvl .down { color: var(--red); }
+  .skill .lvl .of { color: var(--muted); font-size: 13px; font-weight: 600; }
+  .side { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+  .panel-title { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+  .panel-title span { letter-spacing: 0; font-weight: 400; }
+  .worn { display: grid; grid-template-columns: repeat(3, 52px); gap: 6px; justify-content: center; }
+  .inv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+  .slot { height: 48px; border-radius: 8px; background: #161a20; border: 1px solid #262c36; position: relative;
+    display: grid; place-items: center; }
+  .worn .slot { height: 52px; }
+  .slot img { max-width: 34px; max-height: 30px; image-rendering: pixelated; }
+  .slot img.ph { opacity: .18; filter: grayscale(1); }
+  .slot .n { position: absolute; left: 4px; top: 1px; font: 700 11.5px "Segoe UI"; color: #ffff00; text-shadow: 1px 1px 0 #000; }
+  .slot .n.k { color: #fff; } .slot .n.m { color: #00ff80; }
+  .slot[data-name]:hover { border-color: #3a4350; }
+  .slot[data-name]:hover::after { content: attr(data-name); position: absolute; bottom: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); background: #000d; padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 3; }
+  @media (max-width: 1100px) { .char-layout { grid-template-columns: 1fr; } .side { position: static; flex-direction: row; flex-wrap: wrap; } }
+
+  /* bank */
+  .bank { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; height: 64px; position: relative;
+    display: grid; place-items: center; }
+  .item img { max-width: 36px; max-height: 32px; image-rendering: pixelated; }
+  .item .n { position: absolute; left: 5px; top: 2px; font: 700 12px "Segoe UI"; color: #ffff00; text-shadow: 1px 1px 0 #000; }
+  .item .n.k { color: #fff; } .item .n.m { color: #00ff80; }
+  .item:hover::after { content: attr(data-name); position: absolute; bottom: calc(100% + 4px); left: 50%;
+    transform: translateX(-50%); background: #000d; padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap; z-index: 2; }
+
+
+  /* User-requested: an OSRS look for the group bank, the backpack and the worn equipment (the
+     "OSRS look" switch turns it off again: it's all under body.osrs). */
+  /* The OSRS right-click menu for items (user-requested) and the chatbox line its Examine/Value write to. */
+  .osrs-menu { position: fixed; z-index: 3000; min-width: 150px; background: #5d5447; border: 1px solid #000;
+    padding: 0 2px 2px; font: 700 13px Tahoma, Verdana, sans-serif; text-shadow: 1px 1px 0 #000; user-select: none; }
+  .osrs-menu .head { color: #9a8f7c; background: #000; margin: 0 -2px 2px; padding: 2px 4px; text-shadow: none; }
+  .osrs-menu .rows { background: #5d5447; border: 1px solid #000; padding: 1px 0; }
+  .osrs-menu .row { padding: 2px 6px 2px 4px; color: #fff; white-space: nowrap; cursor: default; }
+  .osrs-menu .row .o { color: #ff9040; }
+  .osrs-menu .row:hover, .osrs-menu .row:hover .o { color: #ffff00; }
+  .osrs-chat { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 2999; max-width: min(640px, 92vw);
+    background: #d4c4a1; border: 2px solid #5d5447; box-shadow: 0 0 0 1px #000, 0 6px 20px #0008; padding: 6px 12px;
+    font: 13px Tahoma, Verdana, sans-serif; color: #000; transition: opacity .4s; }
+  .osrs-chat b { color: #000; } .osrs-chat .v { color: #0000ff; }
+  /* The bank window (tabs, search) in both looks; the OSRS look makes it the game's bank (user-requested): stone
+     frame, item count top left, title, a tab strip whose icons are each tab's first item, 8 items a row at the
+     game's 36x32 on a 48x36 pitch with lines between tabs, and a Search box at the bottom. */
+  .bank-top { display: none; }
+  .bank-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .bank-tab { width: 40px; height: 36px; display: grid; place-items: center; border-radius: 8px; cursor: pointer;
+    background: var(--card); border: 1px solid var(--border); }
+  .bank-tab.on { border-color: var(--gold); }
+  .bank-tab img { max-width: 32px; max-height: 28px; image-rendering: pixelated; }
+  .bank-tab .inf { font: 700 22px Tahoma, sans-serif; color: var(--gold); line-height: 1; }
+  .bank-sep { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 4px 0; }
+  .bank-none { grid-column: 1 / -1; color: var(--muted); padding: 12px; }
+  .bank-foot { margin-top: 10px; }
+  .bank-search { width: 220px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font: inherit; }
+  body.osrs .bankwin { zoom: 1.3; width: 500px;   /* the game's sizes, drawn 1.3x bigger (user-requested) */ background: #3e3529; border: 3px solid #2b241b; border-radius: 4px; padding: 6px 12px 10px;
+    box-shadow: inset 0 0 0 2px #5b4f3d, inset 0 0 40px #0006, 0 0 0 1px #000; }
+  body.osrs .bank-top { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; height: 30px; }
+  body.osrs .bank-cap { font: 700 11px Tahoma, sans-serif; color: #ff981f; text-shadow: 1px 1px 0 #000; line-height: 1.1;
+    text-align: center; border-bottom: 0; }
+  body.osrs .bank-title { text-align: center; color: #ff981f; font: 700 14px Verdana, Tahoma, sans-serif; text-shadow: 1px 1px 0 #000;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.osrs .bank-tabs { gap: 2px; margin: 4px 0 0; padding: 0 2px; border-bottom: 2px solid #5b4f3d; flex-wrap: nowrap; overflow-x: auto; }
+  body.osrs .bank-tab { width: 38px; height: 36px; flex: none; border-radius: 4px 4px 0 0; background: #2c251c;
+    border: 1px solid #16120d; border-bottom: 0; box-shadow: inset 1px 1px 0 #5b4f3d; }
+  body.osrs .bank-tab.on { background: #4a3f30; box-shadow: inset 1px 1px 0 #7a6a50; }
+  body.osrs .bank-tab:hover { background: #4a3f30; }
+  body.osrs .bank-tab img { filter: drop-shadow(1px 1px 0 #000a); }
+  body.osrs .bank-tab .inf { color: #ff981f; text-shadow: 1px 1px 0 #000; }
+  body.osrs .bank { grid-template-columns: repeat(8, 36px); grid-auto-rows: auto; gap: 4px 12px; justify-content: center;
+    padding: 8px 0; max-height: 520px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #6b5b42 #2b241b; }
+  body.osrs .bank-sep { height: 1px; background: #6b5f4b; margin: 1px 0; box-shadow: 0 1px 0 #1a150f; }
+  body.osrs .bank-none { color: #ff981f; }
+  body.osrs .bank-foot { margin-top: 6px; display: flex; justify-content: flex-end; }
+  body.osrs .bank-search { width: 130px; padding: 4px 8px; border-radius: 3px; background: #2c251c; border: 1px solid #16120d;
+    box-shadow: inset 1px 1px 0 #5b4f3d; color: #ff981f; font: 700 12px Verdana, Tahoma, sans-serif; text-shadow: 1px 1px 0 #000; }
+  body.osrs .bank-search::placeholder { color: #ff981f; opacity: .8; }
+  @media (max-width: 520px) { body.osrs .bankwin { width: auto; } body.osrs .bank { grid-template-columns: repeat(6, 36px); } }
+  body.osrs .item { background: none; border: 0; border-radius: 0; height: 32px; padding: 0; }
+  body.osrs .item:hover { background: #ffffff12; }
+  body.osrs .item img, body.osrs .slot img { filter: drop-shadow(1px 1px 0 #000a); }
+  body.osrs .item .n, body.osrs .slot .n { font: 700 11px Tahoma, Verdana, sans-serif; left: 1px; top: -1px;
+    text-shadow: 1px 1px 0 #000; }
+  body.osrs .panel.oldstone { background: #3e3529; border: 3px solid #2b241b; border-radius: 4px;
+    box-shadow: inset 0 0 0 2px #5b4f3d, inset 0 0 30px #0006, 0 0 0 1px #000; }
+  body.osrs .panel.oldstone .panel-title { color: #ff981f; text-transform: none;
+    letter-spacing: 0; font: 700 13px Verdana, Tahoma, sans-serif; text-shadow: 1px 1px 0 #000; }
+  /* The game's own sizes (user-requested): the side panels are 190 px wide inside; inventory slots are 36x32 on a
+     42x36 pitch (4 x 7), equipment slots 36x36 with weapon/body/shield wider apart than cape/neck/ammo. */
+  /* The same sizes as the live map's player panel (user-requested): 242 px wide, inventory cells 42x36 with
+     12 px between columns, equipment slots 40 px. */
+  body.osrs .char-layout { grid-template-columns: 1fr 242px; }
+  body.osrs .side .panel { padding: 8px; }
+  body.osrs .inv { grid-template-columns: repeat(4, 42px); grid-auto-rows: 36px; gap: 0 12px; justify-content: center; }
+  body.osrs .inv .slot { background: none; border: 0; border-radius: 0; height: 36px; }
+  body.osrs .inv .slot img { max-width: 36px; max-height: 32px; }
+  body.osrs .inv .slot[data-name]:hover { background: #ffffff12; }
+  body.osrs .worn { grid-template-columns: repeat(3, 40px); grid-auto-rows: 40px; gap: 6px 18px; justify-content: center; }
+  body.osrs .worn > :nth-child(4) { transform: translateX(14px); }    /* cape */
+  body.osrs .worn > :nth-child(6) { transform: translateX(-14px); }   /* ammo */
+  body.osrs .worn .slot { height: 40px; background: #2c251c; border: 1px solid #16120d; border-radius: 3px;
+    box-shadow: inset 1px 1px 0 #5b4f3d, inset -1px -1px 0 #1a150f; }
+  body.osrs .worn .slot img { max-width: 32px; max-height: 32px; }
+  /* Skills like the game's skill tab (user-requested, from an in-game screenshot): a stone panel, three columns,
+     each tile the skill icon and "level / level" in yellow split by a slash; no names or bars (they're in the
+     tooltip); a black Total level tile at the end. */
+  .olvl, .skill.total { display: none; }
+  body.osrs .skills { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 40px; gap: 3px; width: 242px; box-sizing: border-box;
+    background: #3e3529; border: 3px solid #2b241b; border-radius: 4px; padding: 6px;
+    box-shadow: inset 0 0 0 2px #5b4f3d, inset 0 0 40px #0006, 0 0 0 1px #000; }
+  body.osrs .skill { display: flex; align-items: center; gap: 0; padding: 0 3px 0 4px; border-radius: 3px;
+    background: linear-gradient(#5a5446, #4a4539); border: 1px solid #1e1a13;
+    box-shadow: inset 1px 1px 0 #77705c, inset -1px -1px 0 #2c281f; }
+  body.osrs .skill:not(.total) > :not(img):not(.olvl) { display: none; }
+  body.osrs .skill.trained { border-color: #c8a03c; }
+  body.osrs .skill img { width: 22px; height: 22px; object-fit: contain; filter: drop-shadow(1px 1px 0 #000a); }
+  body.osrs .olvl { display: block; position: relative; flex: none; width: 40px; height: 34px; margin-left: auto;
+    font: 700 13px Tahoma, Verdana, sans-serif; color: #ffff00; text-shadow: 1px 1px 0 #000;
+    background: linear-gradient(to top right, transparent calc(50% - 1px), #000 calc(50% - 1px), #000 50%,
+      #ffff00 50%, #ffff00 calc(50% + 1px), transparent calc(50% + 1px)) no-repeat center / 18px 28px; }
+  body.osrs .olvl b { position: absolute; right: 55%; top: 0; font-weight: 700; }
+  body.osrs .olvl i { position: absolute; left: 55%; bottom: 0; font-style: normal; }
+  body.osrs .side .panel-title { align-items: center; white-space: nowrap; font-size: 12px; }
+  body.osrs .side .look-toggle { padding: 1px 6px; }
+  body.osrs .olvl b.up { color: #00ff00; } body.osrs .olvl b.down { color: #ff3030; }
+  body.osrs .skill.total { display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: #000; border: 1px solid #5b4f3d; box-shadow: none; padding: 0; line-height: 1.15;
+    color: #ffff00; font: 700 11px Tahoma, Verdana, sans-serif; text-shadow: 1px 1px 0 #000; }
+  /* A quest's journal (user-requested): the game's parchment page, dark red title, dark blue text. */
+  .qt-list .q[data-quest] { cursor: pointer; }
+  .journal-back { position: fixed; inset: 0; z-index: 3000; background: #0008; display: grid; place-items: center; }
+  .journal { position: relative; width: min(520px, 92vw); max-height: 80vh; display: flex; flex-direction: column;
+    background: linear-gradient(#d8c79f, #c9b68a); border: 3px solid #5d4a2b; border-radius: 6px;
+    box-shadow: inset 0 0 0 2px #e9dcb8, inset 0 0 50px #8a6d3b66, 0 10px 40px #000a; padding: 16px 24px 18px; }
+  .journal h2 { margin: 0 0 10px; text-align: center; color: #7f0000; font: 700 18px Verdana, Tahoma, sans-serif; }
+  .journal-body { overflow-y: auto; color: #000080; font: 700 13px Tahoma, Verdana, sans-serif; line-height: 1.45; text-align: center; }
+  .journal-body s { color: #000080; text-decoration-thickness: 2px; }
+  .journal-x { position: absolute; top: 6px; right: 10px; border: 0; background: none; font: 700 20px Verdana; color: #5d4a2b; cursor: pointer; }
+  .journal-x:hover { color: #7f0000; }
+  /* The Character tab's panels (user-requested): one row of equal panels, the game's tab order. */
+  .opanels { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-top: 4px; }
+  .opanels > div:empty { display: none; }
+  .opanel-break { flex-basis: 100%; height: 0; }   /* inventory + equipment, then the rest (user-requested) */
+  .opanel { width: 232px; height: 410px; box-sizing: border-box; display: flex; flex-direction: column; padding: 8px; margin: 0; }
+  .opanel .panel-title { flex: none; }
+  .opanel .ob { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #4a4f58 transparent; }
+  .opanel .skills { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .opanel .skill { padding: 6px 6px; grid-template-columns: 22px 1fr auto; gap: 2px 6px; font-size: 12px; }
+  .opanel .skill img { width: 20px; height: 20px; }
+  .opanel .skill .lvl { font-size: 14px; }
+  .opanel .skill > div:nth-child(3) { display: none; }   /* names: in the tooltip, the tiles are small */
+  .qt-list .q { padding: 2px 4px; font-size: 12.5px; color: #ff4040; cursor: default; }
+  .qt-list .q.started { color: #ffff00; } .qt-list .q.done { color: #20e020; }
+  .coll { margin-bottom: 8px; }
+  .coll-none { color: var(--muted); font-size: 12px; padding: 8px 4px; }
+  .coll-counts { border-top: 1px solid var(--border); padding-top: 6px; font-size: 12px; }
+  .coll-counts div { display: flex; justify-content: space-between; padding: 1px 4px; }
+  .coll-counts b { color: var(--gold); }
+  body.osrs .opanel { background: #3e3529; border: 3px solid #2b241b; border-radius: 4px;
+    box-shadow: inset 0 0 0 2px #5b4f3d, inset 0 0 30px #0006, 0 0 0 1px #000; }
+  body.osrs .opanel .panel-title { color: #ff981f; text-transform: none; letter-spacing: 0; font: 700 12px Verdana, Tahoma, sans-serif;
+    text-shadow: 1px 1px 0 #000; align-items: center; white-space: nowrap; }
+  body.osrs .opanel .panel-title span { color: #ff981f; font-weight: 700; }
+  body.osrs .opanel .ob { scrollbar-color: #6b5b42 #2b241b; }
+  body.osrs .opanel .skills { width: auto; background: none; border: 0; box-shadow: none; padding: 0; gap: 3px; grid-auto-rows: 40px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body.osrs .opanel .skill { padding: 0 2px 0 3px; min-width: 0; }
+  body.osrs .opanel .skill img { width: 20px; height: 20px; }
+  body.osrs .opanel .olvl { width: 34px; }
+  body.osrs .qt-list .q { font: 700 12px Tahoma, Verdana, sans-serif; text-shadow: 1px 1px 0 #000; color: #ff0000; }
+  body.osrs .qt-list .q.started { color: #ffff00; } body.osrs .qt-list .q.done { color: #0dc10d; }
+  body.osrs .qt-list .q:hover { background: #ffffff10; }
+  body.osrs .coll-none { color: #c8b48a; }
+  body.osrs .coll-counts { border-color: #5b4f3d; font: 700 11px Tahoma, Verdana, sans-serif; color: #ff981f; text-shadow: 1px 1px 0 #000; }
+  body.osrs .coll-counts b { color: #ffff00; }
+  @media (max-width: 1100px) { body.osrs .char-layout { grid-template-columns: 1fr; } body.osrs .side .panel { width: 242px; } }
+  @media (max-width: 600px) { body.osrs .skills { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  body.osrs .worn .slot img.ph { opacity: .35; filter: sepia(1) brightness(.7); }
+  .look-toggle { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--card); color: var(--muted); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .look-toggle:hover { color: var(--text); }
+  body.osrs .look-toggle { color: #ff981f; border-color: #5b4f3d; }
+
+  /* highscores */
+  .skill-picker { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skill-picker button { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
+    border: 1px solid transparent; }
+  .skill-picker button:hover { background: var(--card); }
+  .skill-picker button.on { background: #221a0c; border-color: var(--gold-dim); }
+  .skill-picker img { width: 21px; height: 21px; image-rendering: pixelated; }
+  .hs-activities { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .hs-activities select { background: var(--card); color: inherit; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; font: inherit; min-width: 220px; }
+  .hs-activities select.on { border-color: var(--gold-dim); background: #221a0c; }
+  table.hs { width: 100%; max-width: 900px; border-collapse: collapse; }
+  .hs th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .06em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .hs td { padding: 10px 12px; border-bottom: 1px solid #1d222a; }
+  .hs tr:hover td { background: var(--card); }
+  .hs tr.me td { background: #221a0c; }
+  .hs .rank { color: var(--muted); width: 60px; font-variant-numeric: tabular-nums; }
+  .hs .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .hs .medal { font-weight: 700; color: var(--gold); }
+  iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
+
+  /* embedded in the Zazuosu launcher */
+  body.embedded header .brand, body.embedded #accountChange, body.embedded #serverInput,
+  body.embedded #serverSave { display: none !important; }
+  .zazu-banner { display: none; margin: 10px 16px 0; padding: 10px 14px; border-radius: 10px;
+    background: #3a2a12; border: 1px solid #6b4a1a; color: #f3d08a; font-size: 13px; }
+  /* empty states and setup */
+  .empty { display: grid; place-items: center; text-align: center; color: var(--muted); padding: 60px 20px; gap: 10px; }
+  .empty img { width: 240px; opacity: .9; }
+  .empty h3 { margin: 0; color: var(--text); font-size: 17px; }
+  .setup { position: fixed; inset: 0; z-index: 50; display: none; place-items: center;
+    background: linear-gradient(90deg, #0f1115ee 0%, #0f111599 45%, #0f111522 100%),
+                url("/ui/hero.png") center / cover no-repeat, #0f1115; }
+  .setup.show { display: grid; }
+  .setup .box { width: 460px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+  .setup h2 { margin: 0 0 4px; }
+  .setup label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
+  .setup input { width: 100%; }
+  .error-text { color: #f0938d; font-size: 13px; min-height: 18px; margin-top: 10px; }
+  .script .opts { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 10px; }
+  .script .opt { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+  .script .opt input { accent-color: var(--gold); margin: 0; cursor: pointer; }
+  .script .opt .opt-num { width: 64px; padding: 3px 6px; font-size: 12px; cursor: text; }
+  .script .opts-hint { color: var(--faint); font-size: 12px; margin: 2px 0 10px; }
+  /* The options window fits the screen: its options scroll, Start/Cancel stay at the bottom, and
+     number goals (AIO has 20) sit in two columns. */
+  #optionsDialog .box { width: 640px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px);
+    display: flex; flex-direction: column; }
+  .opts-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin: 16px 0 8px;
+    overflow-y: auto; min-height: 0; flex: 1; padding-right: 6px; }
+  .opts-form .opt.wide { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .opts-form { grid-template-columns: 1fr; } }
+  .opts-form .opt { display: flex; align-items: center; gap: 10px; font-size: 13.5px; cursor: pointer; }
+  .opts-form .opt input[type=checkbox] { accent-color: var(--gold); width: 16px; height: 16px; margin: 0; }
+  .opts-form .opt-num { width: 80px !important; flex: none; padding: 5px 8px; }
+  .settings { max-width: 560px; display: flex; flex-direction: column; gap: 14px; }
+  .settings .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .settings h4 { margin: 0 0 10px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); opacity: 0;
+    background: #1d222a; border: 1px solid var(--border); padding: 10px 16px; border-radius: 10px; transition: .25s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translateX(-50%); }
+
+  /* right-click menus (characters and scripts) */
+  .ctx { position: fixed; z-index: 80; min-width: 230px; max-width: 300px; padding: 6px; border-radius: 10px;
+    background: #1a1f26; border: 1px solid #343c48; box-shadow: 0 12px 32px #000a, 0 0 0 1px #0006;
+    font-size: 13.5px; opacity: 0; transform: scale(.97); transform-origin: top left;
+    transition: opacity .1s, transform .1s; outline: none; }
+  .ctx.show { opacity: 1; transform: none; }
+  .ctx .ctx-head { display: flex; align-items: center; gap: 10px; padding: 6px 8px 9px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--border); }
+  .ctx .ctx-head .avatar { width: 28px; height: 28px; font-size: 13px; }
+  .ctx .ctx-head .avatar .status { width: 10px; height: 10px; border-color: #1a1f26; }
+  .ctx .ctx-head b { display: block; font-size: 14px; }
+  .ctx .ctx-head span { color: var(--muted); font-size: 12px; }
+  .ctx-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 9px; border-radius: 7px;
+    text-align: left; white-space: nowrap; position: relative; }
+  .ctx-item:hover, .ctx-item.open, .ctx-item:focus-visible { background: #262d37; outline: none; }
+  .ctx-item .ico { width: 18px; height: 18px; display: grid; place-items: center; flex: none; }
+  .ctx-item .ico img { max-width: 18px; max-height: 18px; image-rendering: pixelated; }
+  .ctx-item .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .ctx-item .kbd { color: var(--faint); font-size: 12px; }
+  .ctx-item .arrow { color: var(--muted); font-size: 11px; }
+  .ctx-item.green { color: #7fdca2; }
+  .ctx-item.red { color: #f0938d; }
+  .ctx-item.red:hover { background: #2a1513; }
+  .ctx-item.gold { color: var(--gold); }
+  .ctx-item:disabled { opacity: .4; cursor: default; background: none; }
+  .ctx-item.running::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 6px var(--green); }
+  .ctx-sep { height: 1px; background: var(--border); margin: 5px 4px; }
+  .ctx-label { color: var(--faint); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    padding: 6px 9px 3px; }
+  .ctx input.ctx-search { width: 100%; padding: 6px 9px; margin-bottom: 4px; font-size: 13px; }
+  .ctx .ctx-scroll { max-height: min(420px, 70vh); overflow: auto; }
+  .ctx .ctx-none { color: var(--muted); padding: 8px 9px; font-size: 12.5px; }
+  .char .more { opacity: 0; transition: opacity .15s; }
+  .char:hover .more, .char .more.open { opacity: 1; }
+  .more-dots { font-size: 18px; line-height: 1; color: var(--muted); letter-spacing: 1px; }
+  .cats { display: flex; gap: 6px; flex-wrap: wrap; }
+  table.hs tr.click { cursor: pointer; }
+  table.hs tr.click:hover td { background: rgba(255,255,255,.04); }
+  .hs-group-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; }
+  .hs-av { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 7px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="zazu-banner" id="zazuBanner"></div>
+  <header>
+    <div class="brand"><img id="logo" src="/brand/hub-32.png" alt=""><span class="name">BOTSCAPE HUB</span>
+      <span class="who" id="mainName"></span></div>
+    <span class="pill" id="serverPill"><span class="dot"></span><span id="serverText">Connecting…</span></span>
+    <button class="btn gold small" id="updateBtn" style="display:none" title="Installs the new version and opens Bot Scape again (running scripts stop)"></button>
+    <div class="spacer"></div>
+    <button class="btn" id="folderBtn" title="Open the scripts folder"><img src="/open-client-16.png" alt="">Scripts folder</button>
+    <button class="btn primary" id="clientBtn"><img src="/play-16.png" alt="" style="filter:brightness(0)">Play</button>
+    <button class="profile-btn" id="profileBtn" title="Your profile"></button>
+  </header>
+  <div class="body">
+    <aside>
+      <div class="aside-scroll">
+        <div class="gim-head">
+          <img class="gim-badge" src="/gim-24.png" onerror="this.src='/family-32.png'" alt="">
+          <div><div class="gim-title">Group ironman</div><div class="gim-sub" id="groupName"></div></div>
+        </div>
+        <div class="section-title"><span>Group members</span><span class="team-tools"><span id="teamCount"></span><button class="btn restart-everyone" id="restartTeam" hidden title="Restart every running script (they load the newest version)"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M11.5 4.2A5 5 0 1 0 12 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12.2 1.2v3.6H8.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Restart</button><button class="btn stop-everyone" id="stopAllTeam" title="Stop every script on every member"><svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>Stop all</button></span></div>
+        <div id="team"></div>
+        <div class="clone-card" id="cloneCard"></div>
+      </div>
+    </aside>
+    <main>
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-view="map"><img class="tab-icon" src="/map-16.png" alt="">Live map</button>
+        <button class="tab active" data-view="scripts"><img class="tab-icon" src="/scripts-16.png" alt="">Scripts</button>
+        <button class="tab" data-view="skills"><img class="tab-icon" src="/character-16.png" alt="">Character</button>
+        <button class="tab" data-view="bank"><img class="tab-icon" src="/group-bank-16.png" onerror="this.src='/bank-16.png'" alt="">Group bank <span class="count" id="bankCount"></span></button>
+        <button class="tab" data-view="hiscores"><img class="tab-icon" src="/hiscores-16.png" alt="">Highscores</button>
+        <button class="tab" data-view="output"><img class="tab-icon" src="/output-16.png" alt="">Output</button>
+      </nav>
+      <section class="view active" id="view-scripts">
+        <div class="toolbar">
+          <input id="search" placeholder="Search scripts…">
+          <span class="hint" id="scriptHint"></span>
+          <div class="spacer"></div>
+        </div>
+        <div class="cats" id="cats" style="margin:-4px 0 16px"></div>
+        <div class="grid" id="scripts"></div>
+      </section>
+      <section class="view flush" id="view-map"><iframe id="mapFrame" title="Live map"></iframe></section>
+      <section class="view" id="view-output">
+        <div class="toolbar" id="filters"></div>
+        <div class="console" id="console"></div>
+      </section>
+      <section class="view" id="view-skills"><div id="skills"></div></section>
+      <section class="view" id="view-bank"><div id="bank"></div></section>
+      <section class="view" id="view-hiscores">
+        <div class="toolbar"><div>
+          <div class="skill-picker" id="hsSkills"></div>
+          <div class="hs-activities skill-picker" id="hsActivities"></div>
+        </div></div>
+        <div id="hiscores"></div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="setup" id="setup">
+  <div class="box">
+    <img src="/brand/lockup-600.png" alt="Bot Scape" id="setupLockup" style="width:260px;margin-bottom:8px" onerror="this.remove()">
+    <h2>Welcome to Bot Scape</h2>
+    <div class="hint">Your character plays itself with scripts. Like a group ironman, as your group's total level grows you unlock members who play alongside you and share your one group bank.</div>
+    <label for="setupName">Character name</label>
+    <input id="setupName" maxlength="12" placeholder="e.g. simba">
+    <label for="setupPass">Password</label>
+    <input id="setupPass" type="password" maxlength="20" placeholder="4-20 characters">
+    <div class="error-text" id="setupError"></div>
+    <button class="btn gold" id="setupGo" style="width:100%;justify-content:center;margin-top:6px">Start playing</button>
+  </div>
+</div>
+<div class="setup" id="memberDialog">
+  <div class="box">
+    <h2 id="memberTitle">New group member</h2>
+    <div class="hint" id="memberHint">Your group's total level unlocked a new member. They share your group bank and play alongside you.</div>
+    <label for="memberName">Name</label>
+    <input id="memberName" maxlength="12" placeholder="1-12 letters, digits or spaces" autocomplete="off" spellcheck="false">
+    <div class="error-text" id="memberError"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn gold" id="memberCreate" style="flex:1;justify-content:center">Create</button>
+      <button class="btn" id="memberCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="setup" id="optionsDialog">
+  <div class="box">
+    <h2 id="optionsTitle">Options</h2>
+    <div class="hint">Saved for next time; the script reads them when it starts.</div>
+    <div class="opts-form" id="optionsFields"></div>
+    <div class="error-text" id="optionsError"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn gold" id="optionsStart" style="flex:1;justify-content:center">Start</button>
+      <button class="btn" id="optionsCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="setup" id="signin">
+  <div class="box">
+    <img src="/brand/lockup-600.png" alt="Bot Scape" style="width:260px;margin-bottom:8px" onerror="this.remove()">
+    <h2>Sign in to Bot Scape</h2>
+    <div class="hint">Use your zazuosu account (the same as on zazuosu.com and in the Zazuosu launcher). Your character is named after it.</div>
+    <label for="signinName">zazuosu username</label>
+    <input id="signinName" autocomplete="username" spellcheck="false">
+    <label for="signinPass">Password</label>
+    <input id="signinPass" type="password" autocomplete="current-password">
+    <div class="error-text" id="signinError"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn gold" id="signinGo" style="flex:1;justify-content:center">Log in</button>
+      <button class="btn" id="signinRegister">Create account</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const WIKI = "https://oldschool.runescape.wiki/images/";
+const wikiFile = name => WIKI + encodeURIComponent(name.replace(/ /g, "_")) + ".png";
+// The wiki names the Runecrafting icon "Runecraft_icon".
+const skillIcon = skill => wikiFile((skill === "runecrafting" ? "Runecraft" : skill[0].toUpperCase() + skill.slice(1)) + "_icon");
+const COLORS = ["#5fb3f0", "#3fb96b", "#d77ee8", "#ef8a3c", "#4fc1b9", "#e8d27a", "#f07f9a"];
+const SKILLS = ["attack","hitpoints","mining","strength","agility","smithing","defence","herblore","fishing",
+  "ranged","thieving","cooking","prayer","crafting","firemaking","magic","fletching","woodcutting",
+  "runecrafting","slayer","farming","construction","hunter"];
+
+// The name a character shows (a group member with a hidden login name shows the one chosen).
+const shown = c => (c && (c.display || c.name)) || "";
+let data = null, selected = null, view = "scripts", outputAfter = 0, outputFilter = null, colors = {};
+const lines = [];
+
+function colorFor(name) {
+  if (data && name === data.main) return "#e0a83a";
+  if (!colors[name]) colors[name] = COLORS[Object.keys(colors).length % COLORS.length];
+  return colors[name];
+}
+function toast(text) {
+  const t = $("toast"); t.textContent = text; t.classList.add("show");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+// User-requested: a clicked button shows it's doing something. The button the action came from gets a spinner
+// until the answer (and, in the hub, the refresh after it) is in; at least 400 ms so a quick one still shows.
+let pressedBtn = null, pressedAt = 0;
+document.addEventListener("click", e => {
+  const b = e.target.closest && e.target.closest("button");
+  if (b) { pressedBtn = b; pressedAt = Date.now(); }
+}, true);
+function busyButton() {
+  const b = Date.now() - pressedAt < 1500 ? pressedBtn : null;
+  pressedBtn = null;
+  if (!b || b.id === "stopAllTeam" || b.id === "restartTeam" || b.classList.contains("is-busy")) return null;
+  b.classList.add("is-busy"); b.setAttribute("aria-busy", "true");
+  return { b, since: Date.now() };
+}
+function unbusy(busy) {
+  if (!busy) return;
+  setTimeout(() => { busy.b.classList.remove("is-busy"); busy.b.removeAttribute("aria-busy"); },
+             Math.max(0, 400 - (Date.now() - busy.since)));
+}
+async function post(action, body = {}) {
+  const busy = busyButton();
+  try {
+    const res = await fetch("/api/" + action, { method: "POST", body: JSON.stringify(body) });
+    const out = await res.json().catch(() => ({}));
+    if (out.error) toast(out.error);
+    setTimeout(() => refresh().finally(() => unbusy(busy)), 300);
+    return out;
+  } catch (e) {
+    unbusy(busy);
+    throw e;
+  }
+}
+function elapsed(started) {
+  const s = Math.max(0, Math.floor(Date.now() / 1000 - started));
+  return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+function xpFor(level) {
+  let points = 0;
+  for (let l = 1; l < level; l++) points += Math.floor(l + 300 * Math.pow(2, l / 7));
+  return Math.floor(points / 4);
+}
+function fmtCount(n) {
+  if (n >= 10_000_000) return [Math.floor(n / 1e6) + "M", "m"];
+  if (n >= 100_000) return [Math.floor(n / 1e3) + "K", "k"];
+  // The OSRS look writes stacks like the game: no separators ("16064").
+  return [osrsLook() ? String(n) : n.toLocaleString(), ""];
+}
+
+// --- team ---------------------------------------------------------------------------------------
+function renderTeam() {
+  const team = $("team");
+  // Only members already unlocked by the group's total level (a new member every 100 levels).
+  const chars = (data.characters || []).filter(c => c.unlocked);
+  if (!selected || !chars.find(c => c.name === selected)) selected = data.main;
+  $("teamCount").textContent = `${chars.filter(c => c.status === "online").length} online`;
+  // User-requested: nothing running and an AIO script exists -> the button runs AIO on everyone.
+  const anyRunning = chars.some(c => c.script || c.remote);
+  const aio = (data.scripts || []).find(s => s.name === "AIO");
+  const teamBtn = $("stopAllTeam");
+  // Not right after STOP ALL: the button turned into RUN AIO under the cursor and a second click
+  // started everyone again (user-reported: STOP ALL didn't stop the scripts).
+  const runMode = !anyRunning && !!aio && Date.now() - (window.lastStopAll || 0) > 8000;
+  // "Stopping…" from the click until the scripts are gone (at most 15 s), so the click shows at once.
+  const stopping = anyRunning && Date.now() - (window.lastStopAll || 0) < 15000;
+  const mode = runMode ? "run" : stopping ? "stopping" : "stop";
+  if (teamBtn.dataset.mode !== mode) {   // only redrawn when it changes: no flicker on every refresh
+    teamBtn.dataset.mode = mode;
+    teamBtn.classList.toggle("run-everyone", runMode);
+    teamBtn.classList.toggle("stop-everyone", !runMode);
+    teamBtn.classList.toggle("busy", stopping);
+    teamBtn.title = runMode ? "Run AIO on every member" : "Stop every script on every member";
+    teamBtn.innerHTML = runMode
+      ? `<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 2l9 5-9 5z" fill="currentColor"/></svg>Run AIO`
+      : stopping
+      ? `<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="20 12"/></svg>Stopping…`
+      : `<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" fill="currentColor"/></svg>Stop all`;
+  }
+  teamBtn.onclick = runMode ? () => withOptions(aio.id, () => post("run-team", { script: aio.id }))
+                            : () => { window.lastStopAll = Date.now(); renderTeam(); post("stop-all"); };
+  // Restart: shown while scripts run here (not while stopping); "Restarting…" for a few seconds after the click.
+  const restartBtn = $("restartTeam");
+  const restarting = Date.now() - (window.lastRestart || 0) < 8000;
+  restartBtn.hidden = !(chars.some(c => c.script) && !stopping) && !restarting;
+  const rmode = restarting ? "busy" : "idle";
+  if (restartBtn.dataset.mode !== rmode) {
+    restartBtn.dataset.mode = rmode;
+    restartBtn.classList.toggle("busy", restarting);
+    restartBtn.lastChild.textContent = restarting ? "Restarting…" : "Restart";
+  }
+  restartBtn.onclick = () => { window.lastRestart = Date.now(); renderTeam(); post("restart-all"); };
+  const gname = data.family?.groupName;
+  $("groupName").innerHTML = data.main ? `${gname ? `<b>${esc(gname)}</b>` : `${esc(capName(data.main))}'s group`} · one shared bank
+    <button class="icon-btn rename-group" id="renameGroup" title="Name your group (shown on the highscores)">✎</button>` : "";
+  if ($("renameGroup")) $("renameGroup").onclick = () => {
+    const name = prompt("Group name (shown on the highscores; empty for none):", gname || "");
+    if (name !== null) post("group-name", { name });
+  };
+  team.innerHTML = chars.map(c => {
+    const hpPct = c.maxHp ? Math.round(100 * c.hp / c.maxHp) : 0;
+    const status = c.status === "logging_in" ? "online" : c.status;
+    return `<div class="char ${c.name === selected ? "selected" : ""} ${c.unlocked ? "" : "locked"}" data-name="${esc(c.name)}">
+      <div class="top">
+        <div class="avatar" style="background:${colorFor(c.name)}">${esc(shown(c)[0].toUpperCase())}
+          <span class="status ${esc(status)}"></span></div>
+        <div style="min-width:0;flex:1">
+          <div style="display:flex;align-items:center;gap:6px"><span class="name">${esc(shown(c))}</span>
+            <span class="chip ${c.role === "main" ? "main" : ""}">${c.role === "main" ? "leader" : "member"}</span></div>
+          <div class="meta">${c.unlocked ? esc(c.status === "online" ? (c.x ? `${c.x}, ${c.z}` : "online") : c.status) : "locked"}</div>
+        </div>
+        <button class="icon-btn more" data-more="${esc(c.name)}" title="More (or right-click the card)"><span class="more-dots">⋯</span></button>
+        ${c.unlocked ? `<button class="icon-btn" data-play="${esc(c.name)}" title="${c.client ? `${esc(shown(c))}'s game client is open` : `Play ${esc(shown(c))} in the client`}"><img src="${c.client ? "/open-client-lime-24.png" : "/open-client-24.png"}" alt=""></button>` : ""}
+      </div>
+      ${c.activity ? `<div class="doing" title="${esc(c.activity)}">${esc(c.activity)}</div>` : ""}
+      ${c.maxHp ? `<div class="stats"><div class="bar"><div style="width:${hpPct}%;background:${hpPct < 35 ? "#e05a52" : "#3fb96b"}"></div></div>
+        <span>HP ${c.hp}/${c.maxHp} · Total ${c.total}</span></div>` : ""}
+      ${c.script ? `<div class="running"><img src="/play-16.png" alt="" width="12">${esc(c.script)}
+        <span class="time" data-started="${c.started}">${elapsed(c.started)}</span>
+        <button class="icon-btn" data-stop="${esc(c.name)}" title="Stop" style="width:24px;height:24px"><img src="/stop-16.png" alt="" style="width:12px;height:12px"></button></div>`
+        : c.remote ? `<div class="running" title="Running in Bot Scape on ${esc(pcName(c.remote.pc))}"><img src="/play-16.png" alt="" width="12">${esc(c.remote.script)}
+        <span class="hint">${/game client/.test(c.remote.pc || "") ? "in the game client" : "on another PC"}</span><span class="time" data-started="${c.remote.started}">${elapsed(c.remote.started)}</span>
+        <button class="icon-btn" data-stop="${esc(c.name)}" title="Stop it (where it runs)" style="width:24px;height:24px"><img src="/stop-16.png" alt="" style="width:12px;height:12px"></button></div>` : ""}
+    </div>`;
+  }).join("") || (data.online === false
+    ? `<div class="empty"><h3>Server is offline</h3><div class="hint">Your characters show up again as soon as it's back.</div></div>`
+    : `<div class="empty"><h3>No characters yet</h3></div>`);
+  team.querySelectorAll(".char").forEach(el => el.onclick = e => {
+    if (e.target.closest("[data-play],[data-stop],[data-more]")) return;
+    selected = skillsWho = el.dataset.name; renderTeam(); renderScripts(); renderSkills();
+    // User-requested: with the live map open, picking a character takes the map to them.
+    if (view === "map") followOnMap(el.dataset.name);
+  });
+  team.querySelectorAll("[data-play]").forEach(el => el.onclick = () => post("client", { character: el.dataset.play }));
+  const charByName = name => (data.characters || []).find(c => c.name === name);
+  team.querySelectorAll(".char").forEach(el => el.oncontextmenu = e => {
+    e.preventDefault();
+    const c = charByName(el.dataset.name); if (c) openMenu(characterMenu(c), e.clientX, e.clientY);
+  });
+  team.querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
+    const c = charByName(el.dataset.more); if (!c) return;
+    const r = el.getBoundingClientRect();
+    openMenu(characterMenu(c), r.left, r.bottom + 4);
+    el.classList.add("open");
+  });
+  team.querySelectorAll("[data-stop]").forEach(el => el.onclick = () => post("stop", { character: el.dataset.stop }));
+
+  if (data.online === false || data.familyReady === false) {
+    // Offline (or still starting) there's no group data: no made-up zeros ("Your group is full").
+    $("cloneCard").innerHTML = `<div class="hint">${data.online === false ? "Server is offline" : "Server is starting"}: group levels and members return when it's back.</div>`;
+    return;
+  }
+  const f = data.family || {};
+  // The server's group rules decide when member slots unlock (admin launcher: Group rules).
+  const rules = f.rules || { levelsPerMember: 100, maxMembers: 0 };
+  const step = rules.levelsPerMember || 0;
+  const total = f.totalLevel || 0, next = f.nextUnlockAt;
+  // Locked members (more than the group's level allows) are hidden, so they don't count here.
+  const members = (f.members || f.clones || []).filter(c => c.unlocked !== false).length;
+  const unlimited = f.unlocked === -1;
+  const unlocked = unlimited ? Infinity : (f.unlocked || 0);
+  const prev = next != null && step ? next - step : total;
+  const pct = next == null ? 100 : Math.max(0, Math.min(100, step ? (total - prev) * 100 / step : 100));
+  const nextText = unlimited ? "Members need no levels" + (rules.maxMembers ? ` · at most ${rules.maxMembers}` : "")
+    : next == null ? "Your group is full" : `Next member at total level ${next} · ${Math.max(0, next - total)} to go`;
+  $("cloneCard").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <div><div class="hint" title="Member slots unlock from the leader's own total level">Leader's total level</div><div class="big">${total}</div></div>
+      <div style="text-align:right"><div class="hint">Members</div><div class="big" style="color:var(--text)">${members}<span class="hint"> / ${unlimited ? "∞" : unlocked}</span></div></div>
+    </div>
+    <div class="bar" style="margin:10px 0 6px"><div style="width:${pct}%;background:var(--gold)"></div></div>
+    <div class="hint">${nextText}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      ${members < unlocked ? `<button class="btn gold small" id="newClone"><img src="/clone-16.png" alt="" style="filter:brightness(0)">+ New character</button>` : ""}
+      <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone" title="Adds members when your total level allows, and runs AIO on the other members"><span class="switch"></span>Auto</div>
+    </div>`;
+  if ($("newClone")) $("newClone").onclick = () => openMemberDialog();
+  $("autoClone").onclick = () => post("settings", { auto_clone: !data.autoClone });
+}
+
+// User-requested: every 100 total levels a "+ New character" button; you name the new member
+// yourself and the name can't be one that already exists (the server checks every account).
+// Suggested name, the same rule as Auto: the main's name and a number (simba1, simba2, ...).
+function suggestMemberName() {
+  const main = data.main || "member", taken = (data.characters || []).map(c => c.name.toLowerCase());
+  for (let n = 1; n < 100; n++) {
+    const name = main.slice(0, 12 - String(n).length).trimEnd() + n;
+    if (!taken.includes(name.toLowerCase())) return name;
+  }
+  return "";
+}
+// The same window renames a member (its right-click menu: Rename…); null: a new member.
+let renaming = null;
+function openMemberDialog(rename) {
+  renaming = typeof rename === "string" ? rename : null;
+  $("memberTitle").textContent = renaming ? `Rename ${renaming}` : "New group member";
+  $("memberHint").textContent = renaming
+    ? "Pick a new name for this member. Its script is stopped and it's logged out while it's renamed; levels, items and quests stay."
+    : "Your group's total level unlocked a new member. They share your group bank and play alongside you.";
+  $("memberCreate").textContent = renaming ? "Rename" : "Create";
+  $("memberName").value = renaming || suggestMemberName();
+  $("memberError").textContent = "";
+  $("memberCreate").disabled = false;
+  $("memberDialog").classList.add("show");
+  $("memberName").focus();
+  $("memberName").select();
+}
+function closeMemberDialog() { $("memberDialog").classList.remove("show"); }
+async function createMember() {
+  const name = $("memberName").value.trim().replace(/\s+/g, " ");
+  if (!/^[A-Za-z0-9_ ]{1,12}$/.test(name)) { $("memberError").textContent = "Use 1-12 letters, digits, spaces or _."; return; }
+  const taken = (data.characters || []).map(c => c.name.toLowerCase());
+  if (taken.includes(name.toLowerCase()) && name.toLowerCase() !== (renaming || "").toLowerCase()) { $("memberError").textContent = `The name '${name}' is already taken.`; return; }
+  $("memberCreate").disabled = true;
+  $("memberError").textContent = "";
+  const r = renaming ? await post("rename", { character: renaming, name }) : await post("clone", { name });
+  $("memberCreate").disabled = false;
+  if (r.ok && renaming) {
+    if (selected === renaming) selected = skillsWho = name.toLowerCase();
+    closeMemberDialog(); toast(`${renaming} is now ${name.toLowerCase()}`);
+  } else if (r.ok) { closeMemberDialog(); toast(`${name} joined your group`); }
+  else $("memberError").textContent = r.error || "Couldn't add them.";
+}
+$("memberCreate").onclick = createMember;
+$("memberCancel").onclick = closeMemberDialog;
+$("memberName").onkeydown = e => { if (e.key === "Enter") createMember(); if (e.key === "Escape") closeMemberDialog(); };
+
+// User-requested: pressing Run on a script with OPTIONS opens a window with all its settings first
+// (checkboxes and number fields such as level goals); Start saves them and runs the script.
+let optionsThen = null, optionsScript = null;
+function withOptions(scriptId, start) {
+  const s = (data.scripts || []).find(x => x.id === scriptId);
+  if (!s || !(s.options || []).length) { start(); return; }
+  optionsScript = s; optionsThen = start;
+  $("optionsTitle").textContent = `${s.name}`;
+  $("optionsError").textContent = "";
+  $("optionsFields").innerHTML = s.options.map(o => o.type === "int"
+    ? `<label class="opt"><input type="number" min="0" step="1" class="opt-num" data-key="${esc(o.key)}" value="${esc(o.value)}"><span>${esc(o.label)}</span></label>`
+    : `<label class="opt wide"><input type="checkbox" data-key="${esc(o.key)}" ${o.value ? "checked" : ""}><span>${esc(o.label)}</span></label>`).join("");
+  $("optionsDialog").classList.add("show");
+  const first = $("optionsFields").querySelector("input"); if (first) first.focus();
+}
+function closeOptions() { $("optionsDialog").classList.remove("show"); optionsThen = null; optionsScript = null; }
+async function startWithOptions() {
+  if (!optionsScript) return;
+  const values = {};
+  $("optionsFields").querySelectorAll("input").forEach(el => values[el.dataset.key] = el.type === "number" ? Math.max(0, Math.floor(Number(el.value || 0))) : el.checked);
+  const r = await post("script-options", { script: optionsScript.id, values });
+  if (!r.ok) { $("optionsError").textContent = r.error || "Couldn't save the options."; return; }
+  const start = optionsThen; closeOptions(); start && start();
+}
+$("optionsStart").onclick = startWithOptions;
+$("optionsCancel").onclick = closeOptions;
+$("optionsDialog").onkeydown = e => { if (e.key === "Enter") startWithOptions(); if (e.key === "Escape") closeOptions(); };
+
+// --- scripts ------------------------------------------------------------------------------------
+function renderScripts() {
+  const q = $("search").value.trim().toLowerCase();
+  const sel = (data.characters || []).find(c => c.name === selected);
+  $("scriptHint").innerHTML = sel ? `Runs on <b style="color:${colorFor(sel.name)}">${esc(sel.name)}</b>` : "";
+  const scripts = (data.scripts || []).filter(s => (!q || s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+    && (!category || categoryOf(s) === category));
+  const card = s => {
+    const running = sel && sel.script === s.name;
+    const iconSkill = s.icon && SKILLS.includes(s.icon) ? s.icon : s.skill;
+    const icon = s.icon === "botscape" ? `<img src="/brand/logo-64.png" alt="Bot Scape original" title="A Bot Scape original script" style="width:26px;height:26px;image-rendering:auto">`
+      : iconSkill && SKILLS.includes(iconSkill) ? `<img src="${skillIcon(iconSkill)}" alt="" onerror="this.src='/scripts-24.png'">`
+      : `<img src="/scripts-24.png" alt="">`;
+    return `<div class="script ${running ? "is-running" : ""}" data-script="${esc(s.id)}">
+      <div class="head"><div class="badge">${icon}</div><div class="title">${esc(s.name)}</div></div>
+      <div class="desc">${esc(s.description || "No description.")}</div>
+      ${(s.options || []).length ? `<div class="opts-hint">⚙ ${s.options.length} options: asked when you press Run</div>` : ""}
+      <div class="row">
+        ${running ? `<button class="stop-btn" data-stop="${esc(selected)}"><img src="/stop-16.png" alt="">Stop</button>`
+                  : `<button class="run-btn" data-run="${esc(s.id)}"><img src="/play-16.png" alt="">Run on ${esc(selected || "")}</button>`}
+        <button class="btn small" data-team="${esc(s.id)}" title="Run on every unlocked character">Run on team</button>
+      </div></div>`;
+  };
+  const packaged = scripts.filter(s => s.source === "botscape"), own = scripts.filter(s => s.source !== "botscape");
+  const ownTotal = (data.scripts || []).filter(s => s.source !== "botscape").length;
+  let html = `<div class="section-head"><h3>Bot Scape scripts</h3><span class="count">${packaged.length}</span>
+    <span class="sub">Included with the game and kept up to date.</span></div>`;
+  html += packaged.length ? packaged.map(card).join("") : `<div class="section-empty">${q ? "No Bot Scape scripts match." : "No scripts installed."}</div>`;
+  html += `<div class="section-head"><h3>My scripts</h3><span class="count">${own.length}</span>
+    <span class="sub">Your own .py scripts, in your scripts folder.</span>
+    <button class="btn small" id="ownFolder"><img src="/open-client-16.png" alt="">Open folder</button></div>`;
+  html += own.length ? own.map(card).join("") : `<div class="section-empty">${q && ownTotal ? "None of your scripts match."
+    : "No scripts of your own yet. Put a .py file in your scripts folder (start from <b>MyFirstScript.py</b>) and it shows up here."}</div>`;
+  $("scripts").innerHTML = html;
+  $("ownFolder").onclick = () => post("folder", {});
+  $("scripts").querySelectorAll("[data-run]").forEach(el => el.onclick = () =>
+    withOptions(el.dataset.run, () => runScript(selected, el.dataset.run)));
+  $("scripts").querySelectorAll("[data-stop]").forEach(el => el.onclick = () => post("stop", { character: el.dataset.stop }));
+  $("scripts").querySelectorAll("[data-team]").forEach(el => el.onclick = () =>
+    withOptions(el.dataset.team, () => post("run-team", { script: el.dataset.team })));
+  $("scripts").querySelectorAll("[data-script]").forEach(el => el.oncontextmenu = e => {
+    e.preventDefault();
+    const s = (data.scripts || []).find(x => x.id === el.dataset.script); if (s) openMenu(scriptCardMenu(s), e.clientX, e.clientY);
+  });
+}
+
+// --- script categories --------------------------------------------------------------------------
+const CATEGORIES = [
+  ["gathering", "Gathering", ["mining", "woodcutting", "fishing", "hunter", "farming"]],
+  ["production", "Production", ["cooking", "crafting", "firemaking", "fletching", "herblore", "smithing",
+    "runecrafting", "construction"]],
+  ["combat", "Combat", ["attack", "strength", "defence", "ranged", "magic", "prayer", "hitpoints", "slayer"]],
+  ["support", "Support", ["agility", "thieving"]],
+  ["utility", "Utility", []],
+];
+const categoryOf = s => (CATEGORIES.find(([, , skills]) => skills.includes(s.skill)) || CATEGORIES[4])[0];
+let category = "";
+function renderCats() {
+  $("cats").innerHTML = [["", "All"], ...CATEGORIES.map(([id, label]) => [id, label])]
+    .map(([id, label]) => `<button class="filter ${category === id ? "on" : ""}" data-cat="${id}">${label}</button>`).join("");
+  $("cats").querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { category = b.dataset.cat; renderCats(); renderScripts(); });
+}
+function scriptIcon(s) {
+  if (s.icon === "botscape") return `<img src="/brand/logo-64.png" alt="" style="width:18px;height:18px;image-rendering:auto">`;
+  return s.skill && SKILLS.includes(s.skill) ? `<img src="${skillIcon(s.skill)}" alt="" onerror="this.src='/scripts-16.png'">`
+    : `<img src="/scripts-16.png" alt="">`;
+}
+function avatarHtml(c) {
+  const status = c.status === "logging_in" ? "online" : c.status;
+  return `<div class="avatar" style="background:${colorFor(c.name)}">${esc(shown(c)[0].toUpperCase())}<span class="status ${esc(status)}"></span></div>`;
+}
+// Scripts a character ran lately (this computer only), newest first.
+function recentScripts(name) {
+  try { return JSON.parse(localStorage.getItem("recent:" + name) || "[]"); } catch (e) { return []; }
+}
+function runScript(name, id) {
+  try {
+    localStorage.setItem("recent:" + name, JSON.stringify([id, ...recentScripts(name).filter(r => r !== id)].slice(0, 3)));
+  } catch (e) {}
+  return post("run", { character: name, script: id });
+}
+
+// --- right-click menus --------------------------------------------------------------------------
+// An item: { label, icon, cls, kbd, disabled, run(), sub() -> items, search: true (on a submenu list) },
+// or { sep: true }, { title }, { html }.
+const menus = [];
+function closeMenus(depth = 0) {
+  while (menus.length > depth) menus.pop().remove();
+  document.querySelectorAll(".more.open").forEach(b => b.classList.remove("open"));
+}
+function openMenu(items, x, y, depth = 0, anchor = null) {
+  closeMenus(depth);
+  const el = document.createElement("div");
+  el.className = "ctx";
+  el.tabIndex = -1;
+  document.body.appendChild(el);
+  menus.push(el);
+  const fill = list => {
+    const scroll = el.querySelector(".ctx-scroll") || el;
+    scroll.innerHTML = "";
+    for (const it of list) {
+      if (it.sep) { scroll.insertAdjacentHTML("beforeend", `<div class="ctx-sep"></div>`); continue; }
+      if (it.title) { scroll.insertAdjacentHTML("beforeend", `<div class="ctx-label">${esc(it.title)}</div>`); continue; }
+      if (it.html) { scroll.insertAdjacentHTML("beforeend", it.html); continue; }
+      const b = document.createElement("button");
+      b.className = "ctx-item " + (it.cls || "");
+      b.disabled = !!it.disabled;
+      b.innerHTML = `<span class="ico">${it.icon || ""}</span><span class="label">${esc(it.label)}</span>`
+        + (it.kbd ? `<span class="kbd">${esc(it.kbd)}</span>` : "") + (it.sub ? `<span class="arrow">▶</span>` : "");
+      if (it.sub) {
+        const open = () => {
+          if (b.classList.contains("open")) return;
+          el.querySelectorAll(".ctx-item.open").forEach(o => o.classList.remove("open"));
+          b.classList.add("open");
+          const r = b.getBoundingClientRect();
+          openMenu(it.sub(), r.right + 2, r.top - 6, depth + 1, r);
+        };
+        b.onmouseenter = open; b.onclick = open; b.openSub = open;
+      } else {
+        b.onmouseenter = () => { closeMenus(depth + 1); el.querySelectorAll(".ctx-item.open").forEach(o => o.classList.remove("open")); };
+        b.onclick = () => { closeMenus(); it.run && it.run(); };
+      }
+      scroll.appendChild(b);
+    }
+    if (!scroll.querySelector(".ctx-item")) scroll.insertAdjacentHTML("beforeend", `<div class="ctx-none">Nothing matches.</div>`);
+  };
+  if (items.search) {
+    el.innerHTML = `<input class="ctx-search" placeholder="Type to filter…"><div class="ctx-scroll"></div>`;
+    const input = el.querySelector("input");
+    input.oninput = () => {
+      const q = input.value.trim().toLowerCase();
+      // Keep a section title only when one of its items matches.
+      const out = [];
+      let pendingTitle = null;
+      for (const it of items) {
+        if (it.title) { pendingTitle = it; continue; }
+        if (it.sep || (q && !it.label.toLowerCase().includes(q))) continue;
+        if (pendingTitle) { out.push(pendingTitle); pendingTitle = null; }
+        out.push(it);
+      }
+      fill(out);
+    };
+    input.onkeydown = e => { if (e.key === "Enter") { const first = el.querySelector(".ctx-item:not(:disabled)"); first && first.click(); } };
+    fill(items);
+    setTimeout(() => input.focus(), 0);
+  } else {
+    fill(items);
+    setTimeout(() => el.focus(), 0);
+  }
+  // Keep it on screen: flip a submenu to the left of its parent, push a menu up from the bottom edge.
+  const w = el.offsetWidth, h = el.offsetHeight;
+  if (x + w > innerWidth - 8) x = anchor ? anchor.left - w - 2 : innerWidth - w - 8;
+  if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  el.style.left = Math.max(8, x) + "px"; el.style.top = y + "px";
+  requestAnimationFrame(() => el.classList.add("show"));
+  return el;
+}
+document.addEventListener("mousedown", e => { if (!e.target.closest(".ctx, .more")) closeMenus(); });
+window.addEventListener("resize", () => closeMenus());
+document.addEventListener("keydown", e => {
+  if (!menus.length) return;
+  const top = menus[menus.length - 1];
+  const items = [...top.querySelectorAll(".ctx-item:not(:disabled)")];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === "Escape") { e.preventDefault(); closeMenus(menus.length - 1); menus.length && menus[menus.length - 1].focus(); }
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const next = i < 0 ? items[e.key === "ArrowDown" ? 0 : items.length - 1]
+      : items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length];
+    next && next.focus();
+  } else if (e.key === "ArrowRight" && document.activeElement?.openSub) { e.preventDefault(); document.activeElement.openSub(); }
+  else if (e.key === "ArrowLeft" && menus.length > 1) {
+    e.preventDefault(); closeMenus(menus.length - 1);
+    const parent = menus[menus.length - 1].querySelector(".ctx-item.open");
+    parent && (parent.classList.remove("open"), parent.focus());
+  }
+});
+
+function scriptMenuItems(c) {
+  const scripts = data.scripts || [];
+  const item = s => ({ label: s.name, icon: scriptIcon(s), cls: c.script === s.name ? "running" : "",
+                       run: () => withOptions(s.id, () => runScript(c.name, s.id)) });
+  const out = [];
+  for (const [id, label] of CATEGORIES) {
+    const list = scripts.filter(s => s.source === "botscape" && categoryOf(s) === id);
+    if (list.length) out.push({ title: label }, ...list.map(item));
+  }
+  const own = scripts.filter(s => s.source !== "botscape");
+  if (own.length) out.push({ title: "My scripts" }, ...own.map(item));
+  out.search = true;
+  return out;
+}
+// A hub reports itself as "<computer name>:<process id>".
+const pcName = pc => String(pc || "").replace(/:\d+$/, "") || "another PC";
+function characterMenu(c) {
+  const online = c.status === "online" || c.status === "logging_in";
+  const statusText = c.unlocked ? (c.script ? `${online ? "Online" : c.status} · running ${c.script}`
+    : c.remote ? `${online ? "Online" : c.status} · ${c.remote.script} on another PC` : (online ? "Online" : c.status)) : "Locked";
+  const items = [
+    { html: `<div class="ctx-head">${avatarHtml(c)}<div><b>${esc(shown(c))}</b><span>${esc(c.role)} · ${esc(statusText)}</span></div></div>` },
+    { label: `Open client as ${shown(c)}`, icon: `<img src="/open-client-16.png" alt="">`, cls: "gold", disabled: !c.unlocked,
+      run: () => post("client", { character: c.name }) },
+    { label: "Run script", icon: `<img src="/scripts-16.png" alt="">`, disabled: !c.unlocked, sub: () => scriptMenuItems(c) },
+  ];
+  const recent = recentScripts(c.name).map(id => (data.scripts || []).find(s => s.id === id)).filter(Boolean);
+  if (c.unlocked && recent.length) {
+    items.push({ title: "Run again" },
+      ...recent.map(s => ({ label: s.name, icon: scriptIcon(s), cls: c.script === s.name ? "running" : "green",
+                            run: () => withOptions(s.id, () => runScript(c.name, s.id)) })));
+  }
+  if (c.script || c.remote) {
+    items.push({ sep: true },
+      { label: `Stop ${c.script || c.remote.script}`, icon: `<img src="/stop-16.png" alt="">`, cls: "red", run: () => post("stop", { character: c.name }) });
+  }
+  items.push({ sep: true },
+    { label: "Show on live map", icon: `<img src="/map-16.png" alt="">`, disabled: !online, run: () => showOnMap(c.name) },
+    { label: "Show output", icon: `<span class="more-dots" style="font-size:13px">≡</span>`, run: () => showOutput(c.name) },
+    { label: "Copy name", icon: `<span class="more-dots" style="font-size:13px">⧉</span>`,
+      run: () => navigator.clipboard.writeText(c.name).then(() => toast("Copied " + c.name), () => toast(c.name)) });
+  if (c.role !== "main") {
+    items.push({ label: "Rename…", icon: `<span class="more-dots" style="font-size:13px">✎</span>`, run: () => openMemberDialog(c.name) });
+  }
+  if (online) {
+    items.push({ sep: true }, { label: "Log out", icon: `<img src="/stop-16.png" alt="">`, cls: "red",
+      run: () => post("logout", { character: c.name }).then(r => r.ok && toast(`${shown(c)} logged out`)) });
+  }
+  return items;
+}
+function scriptCardMenu(s) {
+  const chars = (data.characters || []).filter(c => c.unlocked);
+  const items = [{ html: `<div class="ctx-head"><div class="badge" style="width:28px;height:28px">${scriptIcon(s)}</div>
+      <div><b>${esc(s.name)}</b><span>${s.source === "botscape" ? "Bot Scape script" : "My script"}</span></div></div>` },
+    { title: "Run on" },
+    ...chars.map(c => ({ label: c.name, cls: c.script === s.name ? "running" : "",
+      icon: `<span style="width:10px;height:10px;border-radius:50%;background:${colorFor(c.name)}"></span>`,
+      kbd: c.script && c.script !== s.name ? c.script : "", run: () => withOptions(s.id, () => runScript(c.name, s.id)) })),
+    { label: "Whole team", icon: `<img src="/family-16.png" alt="">`, cls: "green", run: () => withOptions(s.id, () => post("run-team", { script: s.id })) }];
+  if (s.source !== "botscape") {
+    // Your own scripts: open them in your editor, or a terminal (with an AI tool) in the scripts folder.
+    const editors = data.editors || [];
+    const open = ed => post("open-editor", { script: s.id, editor: ed.id }).then(r => r.ok || toast(r.error || "Couldn't open it"));
+    const current = editors.find(ed => ed.id === data.editor) || editors[0];
+    items.push({ sep: true }, { title: "Open" });
+    if (current) {
+      items.push({ label: `Open in ${current.name}`, icon: `<img src="/scripts-24.png" alt="" style="width:16px">`, run: () => open(current) });
+      if (editors.length > 1) items.push({ label: "Open with", icon: "", sub: () => editors.map(ed => ({
+        label: ed.name, cls: ed.id === current.id ? "running" : "", run: () => open(ed) })) });
+    }
+    items.push({ label: "Terminal in scripts folder", icon: `<span style="font:600 11px monospace">&gt;_</span>`,
+      run: () => post("open-terminal", {}) });
+  }
+  const running = chars.filter(c => c.script === s.name);
+  if (running.length) {
+    items.push({ sep: true }, ...running.map(c => ({ label: `Stop on ${shown(c)}`, icon: `<img src="/stop-16.png" alt="">`, cls: "red",
+      run: () => post("stop", { character: c.name }) })));
+  }
+  return items;
+}
+function switchView(name) { document.querySelector(`.tab[data-view="${name}"]`).click(); }
+function followOnMap(name) {
+  const frame = $("mapFrame");
+  if (frame.contentWindow) frame.contentWindow.postMessage({ follow: name }, "*");
+}
+function showOnMap(name) {
+  switchView("map");
+  const frame = $("mapFrame");
+  // The map may still be loading the first time; ask again once it has the players.
+  const send = () => frame.contentWindow && frame.contentWindow.postMessage({ follow: name }, "*");
+  send(); setTimeout(send, 1200);
+}
+function showOutput(name) { outputFilter = name; renderFilters(); switchView("output"); }
+
+// --- skills and bank ----------------------------------------------------------------------------
+let skillsWho = null;   // a character's name, or "" for the whole family
+// The worn-equipment screen: equipment slot numbers laid out like the game's (null = gap).
+const WORN = [[null, 0, null], [1, 2, 13], [3, 4, 5], [null, 7, null], [9, 10, 12]];
+const SLOT_NAMES = { 0: "Head", 1: "Cape", 2: "Neck", 3: "Weapon", 4: "Body", 5: "Shield", 7: "Legs", 9: "Hands",
+  10: "Feet", 12: "Ring", 13: "Ammo" };
+const cap = s => s[0].toUpperCase() + s.slice(1);
+function fmtShort(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1) + "k";
+  return String(n);
+}
+function fmtDuration(sec) {
+  if (!isFinite(sec) || sec <= 0) return "";
+  if (sec < 60) return "<1m";
+  const m = Math.floor(sec / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d) return `${d}d ${h % 24}h`;
+  if (h) return `${h}h ${String(m % 60).padStart(2, "0")}m`;
+  return `${m}m`;
+}
+// The wiki draws coins by pile size and other stackables (arrows, runes) as "<name> 5".
+const COIN_PILES = [10000, 1000, 250, 100, 25, 5, 4, 3, 2, 1];
+// Last resort, by item id: RuneLite's icon of every item (user-reported: coin pouches and air runes had no
+// picture, the wiki has none under those plain names).
+const RL_ICON = id => `https://static.runelite.net/cache/item/icon/${id}.png`;
+function itemImg(name, count = 1, id) {
+  if (name === "Coins") return `<img src="${wikiFile("Coins " + COIN_PILES.find(n => count >= n))}" alt="" onerror="this.style.display='none'">`;
+  const alts = [wikiFile(name + " 5")].concat(id != null ? [RL_ICON(id)] : []).join("|");
+  return `<img src="${esc(wikiFile(name))}" data-alt="${esc(alts)}" alt=""
+    onerror="const a = (this.dataset.alt || '').split('|').filter(Boolean); if (a.length) { this.src = a.shift(); this.dataset.alt = a.join('|'); } else this.style.display = 'none'">`;
+}
+
+// User-requested: the OSRS look for the bank, backpack and worn items, with a switch back (kept per browser).
+function osrsLook() { try { return localStorage.getItem("ui.osrsLook") !== "0"; } catch (e) { return true; } }
+function lookToggle() { return `<button class="look-toggle" onclick="toggleLook(event)" title="Switch between the OSRS look and the plain one">OSRS: ${osrsLook() ? "on" : "off"}</button>`; }
+function toggleLook(e) {
+  if (e) e.stopPropagation();
+  const on = !osrsLook();
+  try { localStorage.setItem("ui.osrsLook", on ? "1" : "0"); } catch (err) {}
+  document.body.classList.toggle("osrs", on);
+  document.querySelectorAll(".look-toggle").forEach(b => b.textContent = `OSRS: ${on ? "on" : "off"}`);
+}
+document.addEventListener("DOMContentLoaded", () => document.body.classList.toggle("osrs", osrsLook()));
+if (document.body) document.body.classList.toggle("osrs", osrsLook());
+// Stackable items show their amount even at 1, like the game (user-reported: a lone air rune had no number).
+// The server doesn't say what stacks, so it's the stackable kinds by name, plus anything noted.
+const STACKS = /^(Coins|Tokkul|Mark of grace|Platinum token)$| (rune|arrow|bolts|dart|knife|javelin|thrownaxe|seed)$/;
+function itemSlot(item, empty = "") {
+  if (!item) return `<div class="slot">${empty}</div>`;
+  const [n, cls] = fmtCount(item.count);
+  const shown = item.count > 1 || item.noted || STACKS.test(item.name);
+  return `<div class="slot" data-item="${itemData(item)}" data-name="${esc(item.name)}${item.count > 1 ? " × " + item.count.toLocaleString() : ""}">
+    ${itemImg(item.name, item.count, item.id)}
+    ${shown ? `<span class="n ${cls}">${n}</span>` : ""}</div>`;
+}
+function renderSkills() {
+  const chars = (data.characters || []).filter(c => c.unlocked);
+  if (skillsWho === null || (skillsWho && !chars.find(c => c.name === skillsWho))) skillsWho = selected || data.main || "";
+  const who = chars.find(c => c.name === skillsWho);
+  const stats = (who && who.stats) || data.skills;
+  const xp = who ? who.xp : data.familyXp;
+  const picker = `<div class="cats">` + [`<button class="filter ${skillsWho ? "" : "on"}" data-who="">Family</button>`]
+    .concat(chars.map(c => `<button class="filter ${skillsWho === c.name ? "on" : ""}" data-who="${esc(c.name)}">`
+      + `<span class="dot" style="background:${colorFor(c.name)}"></span>${esc(shown(c))}</button>`)).join("") + `</div>`;
+  if (!stats) {
+    $("skills").innerHTML = picker + `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>No one is online</h3>
+      <div>Skills are shared by the whole family; they show while someone plays.</div></div>`;
+    bindWho();
+    return;
+  }
+  const online = who && who.stats;
+  const tracked = xp ? xp.skills : {};
+  const nextIn = (name, s) => {
+    const t = tracked[name];
+    return t && t.perHour > 0 && s.base < 99 ? fmtDuration((xpFor(s.base + 1) - s.xp) / t.perHour * 3600) : "";
+  };
+
+  // Who this is, and the xp tracker's totals.
+  let head;
+  if (who) {
+    head = `<div class="who-card">${avatarHtml(who)}
+      <div class="who-main"><b>${esc(who.name)}</b><span>${esc(who.role)} · ${online ? (who.script ? "running " + esc(who.script) : "online") : esc(who.status)}</span></div>
+      ${online ? `<div class="kv"><span>Combat</span><b>${who.combat}</b></div><div class="kv"><span>Total</span><b>${who.total}</b></div>
+        <div class="kv"><span>Hitpoints</span><b>${who.hp}/${who.maxHp}</b></div>
+        <div class="kv"><span>Run</span><b>${who.runEnergy ?? "?"}%</b></div>` : ""}`;
+  } else {
+    head = `<div class="who-card"><div class="avatar" style="background:var(--gold)"><img src="/family-24.png" alt="" style="width:20px;filter:brightness(0)"></div>
+      <div class="who-main"><b>${esc(data.main)}'s family</b><span>${chars.length} character${chars.length === 1 ? "" : "s"} · shared skills and bank</span></div>
+      <div class="kv"><span>Total</span><b>${data.family?.totalLevel ?? "?"}</b></div>`;
+  }
+  head += `<div class="spacer"></div>
+    <div class="kv"><span>${xp ? "Tracking " + elapsed(xp.since) : "Tracking"}</span><b>${xp ? fmtShort(xp.gained) + " xp" : "–"}</b></div>
+    <div class="kv"><span>XP / hour</span><b class="gold">${xp && xp.perHour ? fmtShort(xp.perHour) : "–"}</b></div>
+    <button class="icon-btn" id="xpReset" title="Reset the xp/h counters"><img src="/reload-16.png" alt=""></button></div>`;
+  if (xp && !xp.ownXp && who && chars.length > 1) {
+    head += `<div class="hint" style="margin:-6px 0 12px">The server doesn't say who earned what yet, so these are the family's shared gains.</div>`;
+  }
+
+  // Skills trained this session, most recent first.
+  const active = Object.entries(tracked).filter(([n]) => stats[n]).sort((a, b) => (b[1].lastGain || 0) - (a[1].lastGain || 0));
+  let training = "";
+  if (active.length) {
+    training = `<div class="section-head"><h3>Training now</h3><span class="count">${active.length}</span></div><div class="training">` + active.map(([name, t]) => {
+      const s = stats[name], lo = xpFor(s.base), hi = xpFor(s.base + 1);
+      const pct = s.base >= 99 ? 100 : Math.round(100 * (s.xp - lo) / Math.max(1, hi - lo));
+      const fresh = t.lastGain && Date.now() / 1000 - t.lastGain < 30;
+      const eta = nextIn(name, s);
+      return `<div class="train ${fresh ? "fresh" : ""}">
+        <img src="${skillIcon(name)}" alt="">
+        <div class="t-main"><div class="t-top"><b>${cap(name)}</b><span class="lvl">${s.base}</span>${s.base < 99 ? `<span class="hint">→ ${s.base + 1}</span>` : ""}
+          <span class="spacer"></span><span class="hint">${pct}%</span></div>
+          <div class="bar"><div style="width:${pct}%"></div></div>
+          <div class="t-stats"><span>+${t.gained.toLocaleString()} xp</span><span><b>${fmtShort(t.perHour)}</b> xp/h</span>
+            ${s.base < 99 ? `<span>${(hi - s.xp).toLocaleString()} xp left</span><span>${eta ? `level in <b>${eta}</b>` : ""}</span>` : `<span>Max level</span>`}</div></div></div>`;
+    }).join("") + `</div>`;
+  }
+
+  // Every skill.
+  const grid = `<div class="panel opanel"><div class="panel-title" title="Boosted or drained levels show as current/base">Skills<span>Total ${who ? who.total : data.family?.totalLevel ?? "?"}</span></div>
+    <div class="ob"><div class="skills">` + SKILLS.map(name => {
+    const s = stats[name]; if (!s) return "";
+    const lo = xpFor(s.base), hi = xpFor(s.base + 1);
+    const pct = s.base >= 99 ? 100 : Math.round(100 * (s.xp - lo) / Math.max(1, hi - lo));
+    const t = tracked[name], eta = nextIn(name, s);
+    const boosted = online && s.level !== s.base;
+    return `<div class="skill ${t ? "trained" : ""}" title="${cap(name)}: ${s.xp.toLocaleString()} xp${s.base < 99 ? ` · ${(hi - s.xp).toLocaleString()} to level ${s.base + 1}` : ""}${t ? ` · ${t.perHour.toLocaleString()} xp/h` : ""}">
+      <img src="${skillIcon(name)}" alt=""><div class="olvl"><b class="${boosted ? (s.level > s.base ? "up" : "down") : ""}">${online ? s.level : s.base}</b><i>${s.base}</i></div><div>${cap(name)}${t ? `<div class="rate">${fmtShort(t.perHour)}/h${eta ? " · " + eta : ""}</div>` : ""}</div>
+      <div class="lvl">${boosted ? `<span class="${s.level > s.base ? "up" : "down"}">${s.level}</span><span class="of">/${s.base}</span>` : s.base}</div>
+      <div class="bar"><div style="width:${pct}%"></div></div></div>`;
+  }).join("") + `<div class="skill total">Total level:<br>${who ? who.total : data.family?.totalLevel ?? "?"}</div></div></div></div>`;
+
+  // Inventory, worn equipment, quests and the collection log (while the character plays).
+  let invP = "", wornP = "", questP = "", collP = "";
+  if (who && online) {
+    const worn = Object.fromEntries((who.equipment || []).map(i => [i.slot, i]));
+    const inv = Object.fromEntries((who.inventory || []).map(i => [i.slot, i]));
+    wornP = `<div class="panel opanel"><div class="panel-title">Worn equipment${lookToggle()}</div><div class="ob"><div class="worn">`
+      + WORN.flat().map(slot => slot === null ? `<div></div>`
+        : itemSlot(worn[slot], `<img class="ph" src="${wikiFile(SLOT_NAMES[slot] + " slot")}" alt="" title="${SLOT_NAMES[slot]}" onerror="this.remove()">`)).join("")
+      + `</div></div></div>`;
+    invP = `<div class="panel opanel"><div class="panel-title">Inventory<span>${(who.inventory || []).length}/28</span></div><div class="ob"><div class="inv">`
+      + Array.from({ length: 28 }, (_, i) => itemSlot(inv[i])).join("") + `</div></div></div>`;
+    questP = questPanel(who.quests, who.name);
+    collP = collectionPanel(who.collection);
+  } else if (who) {
+    invP = `<div class="panel opanel"><div class="empty" style="padding:30px 10px"><h3>${esc(who.name)} is offline</h3>
+      <div>Inventory, equipment, quests and the collection log show while ${esc(who.name)} plays.</div></div></div>`;
+  }
+  const root = $("skills");
+  characterParts(root);
+  if (patchPart(root, ".sk-picker", picker)) bindWho();
+  if (patchPart(root, ".sk-head", head)) {
+    $("xpReset").onclick = () => post("xp-reset", skillsWho ? { character: skillsWho } : {}).then(r => r.ok && toast("XP tracking reset"));
+  }
+  drawPanels(root, { training, skills: grid, quests: questP, inv: invP, worn: wornP, coll: collP });
+}
+// The Character tab as equal panels (user-requested): Inventory, Worn equipment and Skills on the first row,
+// Quest List and Collection Log on the second. Each panel is redrawn only when its
+// own contents change (user-reported: the inventory flickered every second with the xp clock).
+function questPanel(quests, who) {
+  if (!quests || !quests.length) return "";
+  const points = quests.reduce((t, q) => t + (q.status === "done" ? q.quest_points || 0 : 0), 0);
+  const max = quests.reduce((t, q) => t + (q.quest_points || 0), 0);
+  return `<div class="panel opanel"><div class="panel-title">Quest List<span>${points}/${max} QP</span></div><div class="ob qt-list">`
+    + quests.map(q => `<div class="q ${esc(q.status || "")}" data-quest="${esc(q.name)}" data-who="${esc(who || "")}" title="${esc(q.name)}: ${q.status === "done" ? "completed" : q.status === "started" ? "started" : "not started"} · ${q.quest_points || 0} QP. Click for the journal">${esc(q.name)}</div>`).join("")
+    + `</div></div>`;
+}
+const JOURNAL_API = "/api/quest-journal";
+
+// Clicking a quest opens its journal like the game's (user-requested): what's done struck through, then
+// what to do next. The game's markup (<str>, <col=...>) is turned into the same look.
+function journalHtml(line) {
+  return esc(line).replace(/&lt;str&gt;/g, "<s>").replace(/&lt;\/str&gt;/g, "</s>")
+    .replace(/&lt;col=([0-9a-f]{6})&gt;/gi, '<span style="color:#$1">').replace(/&lt;\/col&gt;/g, "</span>")
+    .replace(/&lt;br&gt;/g, "<br>");
+}
+async function openJournal(character, quest) {
+  closeJournal();
+  const box = document.createElement("div");
+  box.className = "journal-back";
+  box.innerHTML = `<div class="journal"><button class="journal-x" title="Close">×</button><h2>${esc(quest)}</h2><div class="journal-body">Loading…</div></div>`;
+  box.onclick = e => { if (e.target === box || e.target.classList.contains("journal-x")) closeJournal(); };
+  document.body.appendChild(box);
+  let r = null;
+  try { r = await (await fetch(`${JOURNAL_API}?character=${encodeURIComponent(character)}&quest=${encodeURIComponent(quest)}`, {})).json(); } catch (e) {}
+  const body = box.querySelector(".journal-body");
+  if (!body) return;
+  body.innerHTML = r && r.lines ? r.lines.map(l => `<div>${journalHtml(l) || "&nbsp;"}</div>`).join("")
+    : `<div>${esc((r && r.error) || "The journal shows while the character is online.")}</div>`;
+}
+function closeJournal() { document.querySelectorAll(".journal-back").forEach(b => b.remove()); }
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeJournal(); });
+document.addEventListener("click", e => {
+  const q = e.target.closest(".qt-list .q[data-quest]");
+  if (q) openJournal(q.dataset.who, q.dataset.quest);
+});
+
+function collectionPanel(col) {
+  const items = (col && col.items) || [], counts = Object.entries((col && col.counts) || {}).filter(([, n]) => n > 0);
+  return `<div class="panel opanel"><div class="panel-title">Collection Log<span>Obtained: ${items.length}</span></div><div class="ob">`
+    + (items.length ? `<div class="inv coll">` + items.map(i => itemSlot({ name: i.name || `Item ${i.id}`, id: i.id, count: i.count })).join("") + `</div>`
+      : `<div class="coll-none">Nothing logged yet: boss drops, clue rewards and minigame rewards show here.</div>`)
+    + (counts.length ? `<div class="coll-counts">` + counts.map(([k, n]) => `<div><span>${esc(k)}</span><b>${n.toLocaleString()}</b></div>`).join("") + `</div>` : "")
+    + `</div></div>`;
+}
+function patchPart(root, sel, html) {
+  const el = root.querySelector(sel);
+  if (!el || el._html === html) return false;
+  el.innerHTML = html; el._html = html;
+  return true;
+}
+function characterParts(root) {
+  if (root.querySelector(".opanels")) return;
+  root.innerHTML = `<div class="sk-picker"></div><div class="sk-head"></div><div class="sk-train"></div>
+    <div class="opanels"><div class="p-inv"></div><div class="p-worn"></div><div class="p-skills"></div><span class="opanel-break"></span><div class="p-quests"></div><div class="p-coll"></div></div>`;
+}
+function drawPanels(root, p) {
+  for (const [sel, html] of [[".sk-train", p.training], [".p-skills", p.skills], [".p-quests", p.quests],
+    [".p-inv", p.inv], [".p-worn", p.worn], [".p-coll", p.coll]]) patchPart(root, sel, html || "");
+}
+
+function bindWho() {
+  $("skills").querySelectorAll("[data-who]").forEach(b => b.onclick = () => { skillsWho = b.dataset.who; renderSkills(); });
+}
+function groupBankHead(bank) {
+  const chars = data.characters || [];
+  const who = chars.map(c => `<span class="${c.status === "online" ? "on" : ""}">${esc(shown(c))}</span>`).join("");
+  const count = bank && bank.length ? `${bank.length} item${bank.length === 1 ? "" : "s"} · ` : "";
+  return `<div class="gbank-head"><img src="/group-bank-32.png" onerror="this.src='/bank-16.png'" alt="">
+    <div style="flex:1"><div style="display:flex;align-items:center"><h3>Group bank</h3>${lookToggle()}</div>
+    <div class="hint">${count}Your group's only bank: whatever any member deposits, every member can withdraw.
+      Unlike OSRS group ironmen there are no personal banks, just this one, shared like group storage.</div>
+    <div class="gbank-who">${who}</div></div></div>`;
+}
+function renderBank() {
+  const bank = data.bank;
+  $("bankCount").textContent = bank && bank.length ? bank.length : "";
+  if (!bank) {
+    $("bank").innerHTML = groupBankHead(null) + `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>No one in the group is online</h3><div>The group bank shows while a member plays.</div></div>`;
+    return;
+  }
+  if (!bank.length) {
+    $("bank").innerHTML = groupBankHead(bank) + `<div class="empty"><img src="/ui/empty-bank.svg" onerror="this.remove()" alt=""><h3>The group bank is empty</h3></div>`;
+    return;
+  }
+  // User-reported: the bank kept refreshing (redrawn on every poll, so the scroll jumped back): only redraw
+  // when something changed, and keep the scroll position when it does.
+  const key = JSON.stringify([bank, (data.characters || []).map(c => [c.name, c.status]), bankTab, bankSearch, osrsLook()]);
+  if (key === renderBank.key && $("bank").querySelector(".bankwin")) return;
+  renderBank.key = key;
+  const scroll = ($("bank").querySelector(".bank") || {}).scrollTop || 0;
+  $("bank").innerHTML = groupBankHead(bank) + bankWindow(bank);
+  const grid = $("bank").querySelector(".bank");
+  if (grid) grid.scrollTop = scroll;
+  bindBankWindow(renderBank);
+}
+
+// Bank tabs (user-requested: the group bank like the game's bank). The server keeps no tabs for the shared
+// bank and the bots never make any, so items go into tabs by what they are (like RuneLite's Bank Tags); a
+// tab's icon is its first item and "All items" shows every tab split by lines, as in the game.
+const BANK_TABS = [
+  ["Tools", /^((bronze|iron|steel|black|mithril|adamant|rune|dragon|crystal|infernal) (pickaxe|axe)|hammer|chisel|knife|tinderbox|small fishing net|big fishing net|fishing rod|fly fishing rod|barbarian rod|harpoon|lobster pot|rake|spade|seed dibber|secateurs|needle|shears|watering can.*|saw|bucket|trowel|gardening trowel|glassblowing pipe|.* mould)$/i],
+  ["Runes and ammo", / rune$|essence$| (arrow|arrowtips|bolts|dart|knife|javelin|thrownaxe)$|^feathers?$/i],
+  ["Fletching", /logs$|\(u\)$|^(bow string|arrow shaft|headless arrow)$/i],
+  ["Gear", /^staff of |(helm|hat|coif|platebody|chainbody|platelegs|plateskirt|chaps|body|shield|defender|sword|scimitar|dagger|mace|warhammer|battleaxe|spear|halberd|claws|whip|bow|staff|wand|boots|gloves|vambraces|bracelet|cape|cloak|amulet|necklace|ring|robe top|robe bottom|tiara)( \(.*\))?$/i],
+  ["Food and fish", /^(raw |burnt )|^(shrimps|anchovies|sardine|herring|trout|salmon|pike|tuna|lobster|swordfish|monkfish|shark|bass|cod|mackerel|bread|cake|chocolate cake|cooked .*|.* pie|.* pizza|stew|potato|cabbage|onion|tomato|banana|cheese|egg|pot of flour|bucket of milk|jug of wine|grapes)$/i],
+  ["Ores and bars", / (ore|bar)$|^(coal|clay|soft clay|golden nugget|pay-dirt)$/i],
+  ["Crafting", /^uncut |^(sapphire|emerald|ruby|diamond|opal|jade|red topaz|dragonstone|onyx)$|hide$|^(leather|hard leather|thread|wool|ball of wool|flax|molten glass|bucket of sand|soda ash|seaweed|cowhide)$/i],
+  ["Herblore", /^grimy |^(guam|marrentill|tarromin|harralander|ranarr|toadflax|irit|avantoe|kwuarm|snapdragon|cadantine|lantadyme|dwarf weed|torstol)( leaf)?$|potion|\(unf\)|vial|\([1-4]\)$|^(eye of newt|limpwurt root|snape grass|red spiders' eggs|white berries|unicorn horn)$/i],
+  ["Farming", /seeds?$|sapling$|seedling$|compost$/i],
+  ["Prayer", /bones$|ashes$/i],
+];
+let bankTab = (() => { try { return localStorage.getItem("ui.bankTab") || ""; } catch (e) { return ""; } })();
+let bankSearch = "";
+
+// The OSRS right-click menu for items (user-requested): "Choose Option", white options with the item name in
+// orange, yellow under the mouse, closes when the mouse leaves it. The hub can't withdraw, so it offers what
+// works from here: Examine (the game's examine text), Value (shop value x amount), Lookup (the wiki) and Cancel.
+function itemData(i) {
+  return esc(JSON.stringify({ n: i.name, c: i.count || 1, e: i.examine || "", v: i.value || 0, id: i.id }));
+}
+function osrsChat(html) {
+  let box = document.querySelector(".osrs-chat");
+  if (!box) { box = document.createElement("div"); box.className = "osrs-chat"; document.body.appendChild(box); }
+  box.innerHTML = html; box.style.opacity = "1";
+  clearTimeout(osrsChat.t); osrsChat.t = setTimeout(() => box.style.opacity = "0", 7000);
+}
+function closeOsrsMenu() { document.querySelectorAll(".osrs-menu").forEach(m => m.remove()); }
+function osrsMenu(e, it) {
+  e.preventDefault(); e.stopPropagation();
+  closeOsrsMenu();
+  const name = `<span class="o">${esc(it.n)}</span>`;
+  const rows = [
+    ["Examine", () => osrsChat(it.c > 1 ? `<b>${it.c.toLocaleString()} x ${esc(it.n)}</b>${it.e ? ": " + esc(it.e) : ""}` : esc(it.e || `It's ${it.n.toLowerCase().startsWith("a") ? "an" : "a"} ${it.n}.`))],
+    ["Value", () => osrsChat(`${esc(it.n)}: ${it.c > 1 ? `${it.c.toLocaleString()} x ${it.v.toLocaleString()} gp = ` : ""}<span class="v">${(it.v * it.c).toLocaleString()} gp</span> (shop value)`)],
+    ["Lookup", () => window.open("https://oldschool.runescape.wiki/w/" + encodeURIComponent(it.n.replace(/ /g, "_")), "_blank", "noopener")],
+  ];
+  const m = document.createElement("div");
+  m.className = "osrs-menu";
+  m.innerHTML = `<div class="head">Choose Option</div><div class="rows">`
+    + rows.map(([op], k) => `<div class="row" data-k="${k}">${op} ${name}</div>`).join("")
+    + `<div class="row" data-k="cancel">Cancel</div></div>`;
+  document.body.appendChild(m);
+  // Opens centred on the mouse like the game's, kept on screen.
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(4, Math.min(e.clientX - w / 2, innerWidth - w - 4)) + "px";
+  m.style.top = Math.max(4, Math.min(e.clientY - 8, innerHeight - h - 4)) + "px";
+  m.onclick = ev => {
+    const row = ev.target.closest(".row"); if (!row) return;
+    closeOsrsMenu();
+    if (row.dataset.k !== "cancel") rows[+row.dataset.k][1]();
+  };
+  m.onmouseleave = () => setTimeout(() => { if (!m.matches(":hover")) m.remove(); }, 150);
+}
+document.addEventListener("contextmenu", e => {
+  const el = e.target.closest("[data-item]");
+  if (el) osrsMenu(e, JSON.parse(el.dataset.item));
+});
+document.addEventListener("mousedown", e => { if (!e.target.closest(".osrs-menu")) closeOsrsMenu(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeOsrsMenu(); });
+function bankTabsOf(bank) {
+  const tabs = BANK_TABS.map(([name]) => ({ name, items: [] })).concat([{ name: "Other", items: [] }]);
+  for (const i of bank) {
+    const at = BANK_TABS.findIndex(([, re]) => re.test(i.name));
+    tabs[at < 0 ? tabs.length - 1 : at].items.push(i);
+  }
+  return tabs.filter(t => t.items.length);
+}
+function bankItem(i) {
+  const [n, cls] = fmtCount(i.count);
+  return `<div class="item" data-item="${itemData(i)}" data-name="${esc(i.name)} × ${i.count.toLocaleString()}">${itemImg(i.name, i.count, i.id)}
+    ${i.count > 1 || STACKS.test(i.name) ? `<span class="n ${cls}">${n}</span>` : ""}</div>`;
+}
+function bankWindow(bank) {
+  const tabs = bankTabsOf(bank);
+  if (bankTab && !tabs.find(t => t.name === bankTab)) bankTab = "";
+  const q = bankSearch.trim().toLowerCase();
+  const strip = `<div class="bank-tabs"><button class="bank-tab ${bankTab ? "" : "on"}" data-tab="" title="All items"><span class="inf">∞</span></button>`
+    + tabs.map(t => `<button class="bank-tab ${bankTab === t.name ? "on" : ""}" data-tab="${esc(t.name)}" title="${esc(t.name)} (${t.items.length})">${itemImg(t.items[0].name, t.items[0].count, t.items[0].id)}</button>`).join("") + `</div>`;
+  let grid;
+  if (q) {
+    grid = bank.filter(i => i.name.toLowerCase().includes(q)).map(bankItem).join("") || `<div class="bank-none">No items match “${esc(bankSearch)}”.</div>`;
+  } else if (bankTab) {
+    grid = tabs.find(t => t.name === bankTab).items.map(bankItem).join("");
+  } else {
+    grid = tabs.map(t => t.items.map(bankItem).join("")).join(`<div class="bank-sep"></div>`);
+  }
+  return `<div class="bankwin"><div class="bank-top"><div class="bank-cap" title="Items in the bank">${bank.length}</div>
+      <div class="bank-title">${q ? "Showing items: " + esc(bankSearch) : bankTab ? "Group Bank · " + esc(bankTab) : "Group Bank"}</div></div>
+    ${strip}<div class="bank">${grid}</div>
+    <div class="bank-foot"><input class="bank-search" placeholder="Search" value="${esc(bankSearch)}" spellcheck="false"></div></div>`;
+}
+function bindBankWindow(rerender) {
+  const root = $("bank");
+  root.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => {
+    bankTab = b.dataset.tab; bankSearch = "";
+    try { localStorage.setItem("ui.bankTab", bankTab); } catch (e) {}
+    rerender();
+  });
+  const s = root.querySelector(".bank-search");
+  if (s) s.oninput = () => {
+    bankSearch = s.value; const at = s.selectionStart;
+    rerender();
+    const again = $("bank").querySelector(".bank-search");
+    if (again) { again.focus(); again.setSelectionRange(at, at); }
+  };
+}
+
+// --- output ------------------------------------------------------------------------------------
+function renderFilters() {
+  const names = (data.characters || []).map(c => c.name);
+  $("filters").innerHTML = [`<button class="filter ${outputFilter ? "" : "on"}" data-f="">Everyone</button>`]
+    .concat(names.map(n => `<button class="filter ${outputFilter === n ? "on" : ""}" data-f="${esc(n)}">${esc(n)}</button>`)).join("")
+    + `<div class="spacer"></div><button class="btn small" id="clearOut">Clear</button>`;
+  $("filters").querySelectorAll("[data-f]").forEach(el => el.onclick = () => { outputFilter = el.dataset.f || null; renderFilters(); renderConsole(); });
+  $("clearOut").onclick = () => { lines.length = 0; renderConsole(); };
+}
+function lineHtml(l) {
+  return `<span class="t">${l.time} </span>${l.who ? `<span class="w" style="color:${colorFor(l.who)}">${esc(l.who)} </span>` : ""}<span class="${l.kind}">${esc(l.text)}</span>\n`;
+}
+function renderConsole() {
+  const el = $("console");
+  el.innerHTML = lines.filter(l => !outputFilter || l.who === outputFilter).map(lineHtml).join("")
+    || `<span class="t">Script output shows here.</span>`;
+  el.scrollTop = el.scrollHeight;
+}
+async function pollOutput() {
+  try {
+    const fresh = await (await fetch("/api/output?after=" + outputAfter)).json();
+    if (fresh.length) {
+      outputAfter = fresh[fresh.length - 1].id;
+      lines.push(...fresh);
+      if (lines.length > 4000) lines.splice(0, lines.length - 3000);
+      const el = $("console"), atEnd = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+      el.insertAdjacentHTML("beforeend", fresh.filter(l => !outputFilter || l.who === outputFilter).map(lineHtml).join(""));
+      if (atEnd) el.scrollTop = el.scrollHeight;
+    }
+  } catch (e) {}
+  setTimeout(pollOutput, 1000);
+}
+
+// --- highscores ---------------------------------------------------------------------------------
+let hsData = null, hsSkill = null, hsLoaded = 0, hsGroup = null;
+async function loadHiscores() {
+  if (Date.now() - hsLoaded < 15000 && hsData) return renderHiscores();
+  try { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); } catch (e) { hsData = { error: "Server offline" }; }
+  renderHiscores();
+}
+// User-requested: "Simba's group", never "simba's group" (group keys are lowercase account names).
+function capName(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
+// User-requested: group leaders' zazuosu profile pictures on the hiscores (members aren't zazuosu
+// accounts). Names without a picture are remembered, so they aren't asked for again.
+const noAvatar = new Set();
+function hsName(r) {
+  const key = (r.name || "").toLowerCase();
+  const leaders = new Set((hsData && hsData.overall || []).filter(o => !o.group || o.group.toLowerCase() === o.name.toLowerCase()).map(o => o.name.toLowerCase()));
+  // A row that says its group is the leader's own row only when the group is its name (user-reported: Test4's
+  // member called Test1 got the real Test1's picture).
+  const leader = r.group !== undefined ? !r.group || r.group.toLowerCase() === key : leaders.has(key);
+  const pic = leader && !noAvatar.has(key)
+    ? `<img class="hs-av" src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="noAvatar.add('${key.replace(/[^a-z0-9_ ]/g, "")}'); this.remove()">` : "";
+  return pic + esc(r.name);
+}
+function renderHiscores() {
+  // hsSkill: null (overall), a skill, "@log" (collection log) or "#<activity>" (boss kills, clues...).
+  // The tab re-renders every refresh: only rebuild the buttons and the dropdown when they change,
+  // or an open dropdown closes itself (user-reported).
+  const setHtml = (el, html) => { if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
+  setHtml($("hsSkills"), `<button class="${hsSkill ? "" : "on"}" data-s="" title="Overall"><img src="${wikiFile("Stats_icon")}" alt=""></button>`
+    + SKILLS.map(s => `<button class="${hsSkill === s ? "on" : ""}" data-s="${s}" title="${s[0].toUpperCase() + s.slice(1)}"><img src="${skillIcon(s)}" alt=""></button>`).join(""));
+  const acts = Object.keys(hsData?.activities || {});
+  const clues = acts.filter(a => a.startsWith("Clue Scrolls")), bosses = acts.filter(a => !a.startsWith("Clue Scrolls"));
+  const opt = a => `<option value="#${esc(a)}" ${hsSkill === "#" + a ? "selected" : ""}>${esc(a)}</option>`;
+  const isAct = (hsSkill || "").startsWith("#");
+  setHtml($("hsActivities"), `<button class="${hsSkill === "@groups" ? "on" : ""}" data-s="@groups" title="Top groups"><img src="/gim-24.png" onerror="this.src='/family-32.png'" alt=""></button>`
+    + `<button class="${hsSkill === "@log" ? "on" : ""}" data-s="@log" title="Collection Log"><img src="${wikiFile("Collection_log")}" alt=""></button>`
+    + `<select id="hsActivity" class="${isAct ? "on" : ""}"><option value="">Boss kills &amp; clue scrolls…</option>`
+    + (clues.length ? `<optgroup label="Clue scrolls">${clues.map(opt).join("")}</optgroup>` : "")
+    + (bosses.length ? `<optgroup label="Bosses &amp; activities">${bosses.map(opt).join("")}</optgroup>` : "")
+    + `</select>`);
+  document.querySelectorAll("#hsSkills [data-s], #hsActivities [data-s]").forEach(b => b.onclick = () => { hsSkill = b.dataset.s || null; hsGroup = null; renderHiscores(); });
+  $("hsActivity").onchange = e => { hsSkill = e.target.value || null; renderHiscores(); };
+  if (!hsData || hsData.error) {
+    $("hiscores").innerHTML = `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>Highscores unavailable</h3><div>${esc(hsData?.error || "")}</div></div>`;
+    return;
+  }
+  const me = (data?.main || "").toLowerCase();
+  const medal = i => i + 1;   // user-requested: plain rank numbers, no medals
+  const counted = (rows, head, empty) => `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">${head}</th></tr>`
+    + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+      <td class="num">${r.count.toLocaleString()}</td></tr>`).join("")
+    + `</table>` + (rows.length ? "" : `<div class="empty"><h3>${empty}</h3></div>`);
+  if (!hsSkill) {
+    const rows = hsData.overall || [];
+    $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th>Group</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+        <td>${r.groupName ? esc(r.groupName) : `<span class="hint">${esc(capName(r.group || r.name))}'s group</span>`}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("")
+      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No players yet</h3></div>`);
+  } else if (hsSkill === "@groups") {
+    $("hiscores").innerHTML = hiscoreGroups(hsData, me);
+    document.querySelectorAll("#hiscores [data-group]").forEach(r => r.onclick = () => { hsGroup = r.dataset.group; renderHiscores(); });
+    const back = $("hsBack"); if (back) back.onclick = () => { hsGroup = null; renderHiscores(); };
+  } else if (hsSkill === "@log") {
+    $("hiscores").innerHTML = counted(hsData.collection || [], "Collection Log", "No one has logged an item yet");
+  } else if (isAct) {
+    const act = hsSkill.slice(1);
+    $("hiscores").innerHTML = counted((hsData.activities || {})[act] || [], act.startsWith("Clue Scrolls") ? "Completed" : "Kill count", `No scores for ${esc(act)} yet`);
+  } else {
+    const rows = (hsData.skills || {})[hsSkill] || [];
+    $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Level</th><th class="num">XP</th></tr>`
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+        <td class="num">${r.level}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")
+      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No one has trained ${esc(hsSkill)} yet</h3></div>`);
+  }
+}
+
+// User-requested: the top groups (every member's total level and XP added up); a group's row opens its players.
+function hiscoreGroups(hs, me) {
+  const groups = new Map();
+  if (hs.groups) {
+    for (const g of hs.groups) groups.set(g.key, { key: g.key, name: g.name, members: g.players, level: g.totalLevel, xp: g.totalXp,
+      mine: g.players.some(p => p.name.toLowerCase() === me) });
+  } else {   // an older server: add up the top players' list
+    const key = r => (r.group || r.name).toLowerCase();
+    for (const r of hs.overall || []) {
+      const g = groups.get(key(r)) || { key: key(r), name: r.groupName || `${capName(r.group || r.name)}'s group`, members: [], level: 0, xp: 0, mine: false };
+      g.members.push(r); g.level += r.totalLevel; g.xp += r.totalXp; g.mine = g.mine || r.name.toLowerCase() === me;
+      groups.set(key(r), g);
+    }
+  }
+  const list = [...groups.values()].sort((a, b) => b.xp - a.xp || b.level - a.level);
+  if (hsGroup) {
+    const g = groups.get(hsGroup);
+    if (g) return `<div class="hs-group-head"><button class="btn" id="hsBack">← All groups</button><b>${esc(g.name)}</b><span class="hint">rank ${list.indexOf(g) + 1} · ${g.members.length} member${g.members.length === 1 ? "" : "s"}</span></div>`
+      + `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
+      + g.members.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${i + 1}</td><td>${hsName(r)}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("") + `</table>`;
+  }
+  return `<table class="hs"><tr><th>Rank</th><th>Group</th><th class="num">Members</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
+    + list.map((g, i) => `<tr class="click ${g.mine ? "me" : ""}" data-group="${esc(g.key)}" title="Show ${esc(g.name)}'s players"><td class="rank">${i + 1}</td><td>${esc(g.name)}</td>
+      <td class="num">${g.members.length}</td><td class="num">${g.level.toLocaleString()}</td><td class="num">${g.xp.toLocaleString()}</td></tr>`).join("")
+    + `</table>` + (list.length ? "" : `<div class="empty"><h3>No groups yet</h3></div>`);
+}
+
+// --- header, settings, setup -------------------------------------------------------------------
+function renderHeader() {
+  const up = $("updateBtn");
+  if (data && data.update) {
+    up.style.display = "";
+    up.textContent = data.updateIn != null ? `Updating to ${data.update} in ${data.updateIn} s…` : `Update to ${data.update}`;
+  } else up.style.display = "none";
+  $("mainName").textContent = data.main ? "· " + data.main : "";
+  const pill = $("serverPill");
+  pill.className = "pill " + (data.online ? "on" : "off");
+  $("serverText").textContent = data.online ? `Server online · ${data.ms} ms` : "Server offline";
+  $("clientBtn").innerHTML = `<img src="/play-16.png" alt="" style="filter:brightness(0)">Play ${esc(selected || data.main || "")}`;
+  // Embedded in the Zazuosu launcher: it shows the brand and owns sign-in (zazuosu account).
+  document.body.classList.toggle("embedded", !!data.embedded);
+  const z = data.zazuosu || {};
+  $("zazuBanner").textContent = data.embedded && z.status !== "signed-in"
+    ? (z.error || "Signing in with your zazuosu account…")
+    : data.zazuosuPending && !data.signedIn ? "Signed in to zazuosu: your character connects as soon as the Bot Scape server is online…" : "";
+  $("zazuBanner").style.display = $("zazuBanner").textContent ? "block" : "none";
+  // Players sign in with their zazuosu account; the PC that hosts a server uses a local account.
+  const needsSignIn = !data.embedded && !data.host && data.signedIn === false && !data.zazuosuPending;
+  $("signin").classList.toggle("show", needsSignIn);
+  $("setup").classList.toggle("show", !data.embedded && !!data.host && data.hasAccount === false);
+  const frame = $("mapFrame");
+  const mapSrc = data.mapUrl && data.mapUrl + (data.main ? (data.mapUrl.includes("?") ? "&" : "?") + "me=" + encodeURIComponent(data.main) : "");
+  if (view === "map" && mapSrc && frame.dataset.src !== mapSrc) { frame.src = mapSrc; frame.dataset.src = mapSrc; }
+}
+
+async function refresh() {
+  try {
+    data = await (await fetch("/api/overview")).json();
+  } catch (e) {
+    // The hub's own backend didn't answer this once (busy): keep the last picture, not "offline".
+    if (!data) data = { online: false, characters: [], scripts: [] };
+    return;
+  }
+  renderHeader();
+  // Offline for two refreshes in a row (not one dropped request): the overlay, until it's back.
+  window.offlineCount = data.online === false ? (window.offlineCount || 0) + 1 : 0;
+  $("offlineOverlay").hidden = window.offlineCount < 2;
+  if (data.characters) renderTeam();
+  renderScripts();
+  renderSkills();
+  renderBank();
+  if (view === "hiscores") loadHiscores();
+  if (!$("filters").children.length || $("filters").dataset.n != (data.characters || []).length) {
+    $("filters").dataset.n = (data.characters || []).length; renderFilters();
+  }
+}
+
+$("tabs").onclick = e => {
+  const tab = e.target.closest(".tab"); if (!tab) return;
+  view = tab.dataset.view;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
+  if (view === "output") renderConsole();
+  if (view === "hiscores") loadHiscores();
+  if (data) renderHeader();
+};
+$("search").oninput = renderScripts;
+renderCats();
+$("clientBtn").onclick = () => post("client", { character: selected || data.main });
+$("folderBtn").onclick = () => post("folder");
+async function checkForUpdates() {
+  toast("Checking for updates…");
+  const r = await post("check-update");
+  if (!r.ok) { toast(r.error || "Couldn't reach zazuosu.com"); return; }
+  await refresh();
+  toast(data.update ? `Bot Scape ${data.update} is out: press "Update to ${data.update}" at the top` : `Bot Scape is up to date (${data.version})`);
+}
+$("updateBtn").onclick = () => {
+  const running = (data.characters || []).filter(c => c.script).length;
+  if (running && !confirm(`Update Bot Scape now? ${running} running script(s) will stop.`)) return;
+  $("updateBtn").textContent = "Updating…"; $("updateBtn").disabled = true;
+  post("update").then(r => { if (!r.ok) { toast(r.error || "Couldn't update"); $("updateBtn").disabled = false; } });
+};
+async function zazuosuSignIn(register) {
+  $("signinError").textContent = "";
+  $("signinGo").disabled = $("signinRegister").disabled = true;
+  const r = await post("zazuosu-login", { username: $("signinName").value, password: $("signinPass").value, register });
+  $("signinGo").disabled = $("signinRegister").disabled = false;
+  if (!r.ok) { $("signinError").textContent = r.error || "Couldn't sign in."; return; }
+  $("signinPass").value = "";
+  $("signin").classList.remove("show");
+  toast(register ? "Account created: welcome to Bot Scape!" : "Signed in");
+  refresh();
+}
+$("signinGo").onclick = () => zazuosuSignIn(false);
+$("signinRegister").onclick = () => zazuosuSignIn(true);
+$("signinPass").onkeydown = e => { if (e.key === "Enter") zazuosuSignIn(false); };
+$("setupGo").onclick = async () => {
+  const out = await post("account", { main: $("setupName").value, password: $("setupPass").value });
+  if (out.ok) {
+    $("setup").classList.remove("show");
+    toast("Welcome! Press ▶ on a script to start.");
+  } else {
+    $("setupError").textContent = out.error || "Something went wrong.";
+  }
+};
+setInterval(() => document.querySelectorAll("[data-started]").forEach(el => el.textContent = elapsed(+el.dataset.started)), 1000);
+// The hub has its own dashboard mark; game clients keep the robot shield.
+for (const id of ["logo"]) {
+  const img = new Image(); img.onload = () => $(id).src = img.src; img.src = "/brand/hub-64.png";
+}
+refresh().then(() => {
+  const tab = document.querySelector(`.tab[data-view="${location.hash.slice(1)}"]`);
+  if (tab) tab.click();
+});
+setInterval(refresh, 1500); pollOutput();
+window.addEventListener("beforeunload", e => {
+  if ((data?.characters || []).some(c => c.script)) { e.preventDefault(); e.returnValue = ""; }
+});
+
+// User-requested: change your profile picture. The picked image is cropped to the middle square and saved as a
+// 256 px JPEG (zazuosu keeps it as avatars/<name>.jpg, which the highscores show too).
+function pickAvatar() {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "image/png,image/jpeg,image/webp,image/gif";
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      if (!file) return resolve(null);
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement("canvas");
+        c.width = c.height = 256;
+        c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 256, 256);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.9).split(",")[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("That file isn't an image the browser can read.")); };
+      img.src = url;
+    };
+    input.click();
+  });
+}
+async function changeAvatar() {
+  let image;
+  try { image = await pickAvatar(); } catch (e) { return toast(e.message); }
+  if (!image) return;
+  $("profileBtn").dataset.key = "";
+  const out = await post("profile-avatar", { image });
+  if (!out.error) toast("Profile picture changed");
+}
+// The profile button: your zazuosu picture (or your initial), with your name and Log out.
+function renderProfile() {
+  const p = Object.assign({ name: data && data.main }, (data && data.profile) || {});
+  const btn = $("profileBtn");
+  if (!btn) return;
+  btn.style.display = p.name ? "" : "none";
+  const key = (p.avatar || "") + "|" + (p.name || "");
+  if (btn.dataset.key === key) return;
+  btn.dataset.key = key;
+  // Without a zazuosu sign-in (the hub on the host PC) try the zazuosu picture by name; the initial if none.
+  const initial = (p.name || "?").charAt(0).toUpperCase();
+  const src = p.avatar || (p.name ? `https://zazuosu.com/avatars/${encodeURIComponent(p.name.toLowerCase())}.jpg` : "");
+  btn.textContent = initial;
+  if (src) {
+    const img = new Image();
+    img.alt = "";
+    img.onload = () => { btn.textContent = ""; btn.appendChild(img); };
+    img.src = src;
+  }
+}
+setInterval(renderProfile, 1000);
+document.addEventListener("click", e => {
+  const btn = e.target.closest && e.target.closest("#profileBtn");
+  if (!btn) return;
+  const p = Object.assign({ name: data && data.main }, (data && data.profile) || {});
+  const r = btn.getBoundingClientRect();
+  openMenu([
+    { html: `<div class="ctx-head"><div><b>${esc(p.name || "")}</b><span>${data && data.embedded ? "zazuosu account" : "Bot Scape account"}</span></div></div>` },
+    // User-requested: check for a new Bot Scape version by hand (the hub also checks every 10 minutes).
+    ...(data && data.version ? [{ label: `Check for updates`, kbd: `v${data.version}`, run: checkForUpdates }] : []),
+    // User-requested: change the profile picture (a zazuosu sign-in only: it's the zazuosu account's picture).
+    ...(data && data.embedded ? [{ label: p.avatar ? "Change profile picture" : "Add a profile picture", run: changeAvatar }] : []),
+    { label: "Log out", run: () => post("logout") },
+  ], r.right - 200, r.bottom + 6);
+});
+</script>
+<div id="offlineOverlay" class="offline-overlay" hidden>
+  <div class="offline-card">
+    <div class="offline-spinner"></div>
+    <h2>Server offline</h2>
+    <p id="offlineText">The Bot Scape server isn't answering. It's probably restarting for an update.</p>
+    <p class="hint">Reconnecting by itself. Scripts and clients carry on when it's back.</p>
+  </div>
+</div>
+</body>
+</html>

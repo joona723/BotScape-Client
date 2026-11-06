@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape: quiet hills, castle and mine at dusk</title>
+  <defs>
+    <radialGradient id="glow" cx="76%" cy="50%" r="48%" gradientTransform="matrix(1 0 0 2.60417 0 -0.802085)">
+      <stop stop-color="#3c2f1d"/>
+      <stop offset=".5" stop-color="#1b1c1d"/>
+      <stop offset="1" stop-color="#0f1115"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="0" width="1600" height="500" rx="0" fill="url(#glow)"/>
+  <circle cx="1240" cy="134" r="44" fill="#54432a"/>
+  <circle cx="1251" cy="124" r="42" fill="#322b21"/>
+  <path d="M 0 455 Q 210 441 420 345 L 610 256 L 704 290 L 842 207 L 1011 292 L 1130 241 L 1282 284 L 1412 222 L 1600 303 L 1600 500 L 0 500 Z" fill="#202326" fill-rule="evenodd"/>
+  <path d="M 0 479 Q 300 460 530 392 Q 697 269 841 334 Q 1008 234 1160 334 Q 1390 259 1600 337 L 1600 500 L 0 500 Z" fill="#191e23" fill-rule="evenodd"/>
+  <path d="M 1030 321 L 1030 221 L 1024 221 L 1047 194 L 1070 221 L 1064 221 L 1064 253 L 1110 253 L 1110 205 L 1104 205 L 1133 171 L 1162 205 L 1156 205 L 1156 246 L 1174 246 L 1174 236 L 1185 236 L 1185 246 L 1196 246 L 1196 236 L 1207 236 L 1207 246 L 1218 246 L 1218 216 L 1212 216 L 1234 190 L 1256 216 L 1250 216 L 1250 321 Z" fill="#10151a" fill-rule="evenodd"/>
+  <rect x="1043" y="235" width="7" height="12" rx="3" fill="#806133"/>
+  <rect x="1128" y="219" width="8" height="16" rx="4" fill="#a17a3c"/>
+  <rect x="1230" y="232" width="7" height="12" rx="3" fill="#806133"/>
+  <path d="M 1120 321 L 1120 284 Q 1133 264 1146 284 L 1146 321 Z" fill="#272821" fill-rule="evenodd"/>
+  <path d="M 0 430 Q 172 404 327 431 Q 494 455 650 394 Q 828 325 1020 377 Q 1180 329 1340 363 Q 1460 297 1600 337 L 1600 500 L 0 500 Z" fill="#11171b" fill-rule="evenodd"/>
+  <path d="M 1326 411 L 1326 374 Q 1366 318 1406 374 L 1406 411 Z" fill="#090d11" fill-rule="evenodd"/>
+  <path d="M 1328 410 L 1333 363 L 1397 363 L 1403 410 M 1329 375 L 1401 375" fill="none" fill-rule="evenodd" stroke="#4c4130" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 1351 409 L 1310 476 M 1383 409 L 1401 476 M 1336 435 L 1389 435 M 1324 454 L 1395 454 M 1311 475 L 1402 475" fill="none" fill-rule="evenodd" stroke="#30302b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="1417" cy="375" r="5" fill="#e0a83a"/>
+  <path d="M 1417 358 L 1417 369" fill="none" fill-rule="evenodd" stroke="#655033" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 885 379 L 908 341 L 930 379 Z M 894 356 L 908 331 L 923 356 Z M 955 375 L 974 344 L 993 375 Z M 966 353 L 974 336 L 984 353 Z M 1490 348 L 1512 310 L 1534 348 Z M 1499 324 L 1512 299 L 1526 324 Z" fill="#10151a" fill-rule="evenodd"/>
+  <path d="M 0 468 Q 250 443 476 470 Q 711 423 924 464 Q 1118 420 1294 463 L 1269 500 L 0 500 Z" fill="#0f1115" fill-rule="evenodd"/>
+</svg>

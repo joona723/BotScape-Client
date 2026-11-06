@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape open client</title>
+  <rect x="3" y="5" width="26" height="19" rx="2" fill="#b8bec7"/><rect x="6" y="10" width="20" height="11" rx="0" fill="#30353e"/><rect x="6" y="7" width="3" height="1" rx="0" fill="#616975"/><path fill="#b8bec7" d="M 14 24 L 18 24 L 18 27 L 23 27 L 23 29 L 9 29 L 9 27 L 14 27 Z"/><path fill="#3fb96b" d="M 13 12 L 13 19 L 19 15.5 Z"/>
+</svg>
