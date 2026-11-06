@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Bot Scape's own launcher (BotScape.exe): checks zazuosu.com for updates, then opens the hub.
+       .NET Framework 4.8 is built into Windows 10/11, so players need nothing extra installed. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>BotScape</AssemblyName>
+    <RootNamespace>BotScape</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <ApplicationIcon>..\..\assets\brand\hub.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\HubWindow.cs" Link="HubWindow.cs" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+</Project>

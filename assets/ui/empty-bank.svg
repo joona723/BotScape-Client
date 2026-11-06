@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape: bank empty state</title>
+  <path d="M 37 137 L 203 137" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 62 77 L 77 47 L 163 47 L 178 77 L 178 129 L 62 129 Z" fill="#161a20" fill-rule="evenodd" stroke="#8b919c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 62 77 L 178 77 M 78 48 L 91 77 M 161 48 L 149 77 M 81 94 L 81 119 M 159 94 L 159 119" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="110" y="69" width="20" height="25" rx="4" fill="#161a20" stroke="#e0a83a" stroke-width="2.5"/>
+  <circle cx="120" cy="81" r="2" fill="#e0a83a"/>
+  <path d="M 106 111 Q 120 101 134 111" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 193 52 L 193 64 M 187 58 L 199 58 M 47 93 L 47 101 M 43 97 L 51 97" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

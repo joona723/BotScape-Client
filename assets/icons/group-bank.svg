@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape group bank</title>
+  <circle cx="10" cy="5" r="3" fill="#b8bec7"/><circle cx="22" cy="5" r="3" fill="#b8bec7"/><path fill="#3fb96b" d="M 4 14 L 4 13 C 4 10 6 9 10 9 C 14 9 16 10 16 13 L 16 14 Z M 18 14 L 18 13 C 18 10 20 9 22 9 C 26 9 28 10 28 13 L 28 14 Z"/><rect x="3" y="17" width="26" height="12" rx="2" fill="#a96900"/><path fill="#e0a83a" d="M 3 21 L 3 19 Q 3 16 6 16 L 26 16 Q 29 16 29 19 L 29 21 Z"/><path fill="#f1b642" d="M 6 16 L 9 16 L 9 29 L 6 29 Z M 23 16 L 26 16 L 26 29 L 23 29 Z"/><rect x="13" y="20" width="6" height="5" rx="1" fill="#e6e8eb"/><rect x="15" y="21" width="2" height="3" fill="#30353e"/>
+</svg>

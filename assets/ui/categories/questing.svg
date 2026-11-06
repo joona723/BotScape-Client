@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape questing category</title>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="#323047"/>
+  <path d="M 11 8 L 23 8 L 21 12 L 23 16 L 11 16 Z M 11 8 L 11 25" fill="none" fill-rule="evenodd" stroke="#b2a4d5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

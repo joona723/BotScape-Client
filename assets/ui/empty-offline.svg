@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" role="img" aria-labelledby="title">
+  <title id="title">Bot Scape: offline empty state</title>
+  <path d="M 37 137 L 203 137" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="70" y="48" width="100" height="77" rx="10" fill="#161a20" stroke="#8b919c" stroke-width="2.5"/>
+  <path d="M 70 86 L 170 86 M 84 64 L 123 64 M 84 102 L 114 102" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="153" cy="65" r="3" fill="#8b919c"/>
+  <circle cx="153" cy="103" r="3" fill="#8b919c"/>
+  <path d="M 91 30 Q 120 8 149 30 M 101 38 Q 120 24 139 38" fill="none" fill-rule="evenodd" stroke="#8b919c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="172" cy="119" r="17" fill="#161a20" stroke="#e0a83a" stroke-width="2.5"/>
+  <path d="M 166 119 L 178 119" fill="none" fill-rule="evenodd" stroke="#e0a83a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

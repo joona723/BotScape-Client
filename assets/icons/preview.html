@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Bot Scape · Icon library</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #16181d; color: #e9ebef; font: 14px/1.5 system-ui, sans-serif; }
+    main { max-width: 1220px; margin: auto; padding: 48px 28px; }
+    .eyebrow { color: #3fb96b; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 8px 0; font-size: 32px; font-weight: 600; letter-spacing: -.04em; }
+    p { color: #aeb4be; margin: 0; }
+    .legend { display: flex; gap: 24px; flex-wrap: wrap; margin: 24px 0 32px; font-size: 12px; color: #aeb4be; }
+    .legend span { display: flex; align-items: center; gap: 8px; }
+    .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+    .boards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .board { border: 1px solid #3a3d44; border-radius: 10px; overflow: hidden; }
+    .board header { padding: 18px 18px 12px; }
+    h2 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+    code { color: #959da9; font: 11px ui-monospace, monospace; }
+    table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+    th { color: #959da9; font-size: 10px; font-weight: 500; height: 32px; }
+    th:first-child { width: 38%; text-align: left; padding-left: 18px; }
+    td { height: 64px; border-top: 1px solid #ffffff09; text-align: center; }
+    td:first-child { text-align: left; padding-left: 18px; font-size: 12px; }
+    a { color: inherit; text-decoration: none; }
+    a:hover { color: #78d699; }
+    a:focus-visible { outline: 2px solid #3fb96b; outline-offset: 4px; }
+    td a.sample { display: inline-flex; width: 40px; height: 40px; align-items: center; justify-content: center; vertical-align: middle; }
+    img { display: block; flex: none; }
+    footer { margin-top: 24px; color: #959da9; font-size: 12px; }
+    footer p + p { margin-top: 6px; }
+    @media (max-width: 900px) { .boards { grid-template-columns: 1fr; } main { max-width: 560px; padding: 28px 16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Bot Scape / UI assets</div>
+    <h1>Small icons. Clear actions.</h1>
+    <p>Seventeen glyphs for the launcher, client sidebar and desktop manager. Shown at native size.</p>
+    <div class="legend" aria-label="Palette">
+      <span><i class="swatch" style="background:#3fb96b"></i>Action green · #3fb96b</span>
+      <span><i class="swatch" style="background:#e05a52"></i>Stop red · #e05a52</span>
+      <span><i class="swatch" style="background:#dc8a00"></i>Utility gold · #dc8a00</span>
+    </div>
+    <div class="boards" id="boards"></div>
+    <noscript><p>Enable JavaScript to display the icon comparison tables.</p></noscript>
+    <footer>
+      <p>All PNGs have transparent backgrounds. Click a glyph for its PNG, or its name for the SVG source.</p>
+      <p>32-unit SVG grid · 16 / 24 / 32 px exports · 8× rendering with LANCZOS downsampling</p>
+    </footer>
+  </main>
+  <script>
+    const icons = ['play', 'stop', 'reload', 'scripts', 'family', 'gim', 'map', 'clone', 'bank', 'group-bank', 'open-client', 'output', 'character', 'hiscores', 'settings', 'quests', 'skills'];
+    const backgrounds = [['Launcher panel', '#161a20'], ['Launcher canvas', '#0f1115'], ['Client sidebar', '#1e1e1e']];
+    const sizes = [16, 24, 32];
+    document.getElementById('boards').innerHTML = backgrounds.map(([label, color]) => `
+      <section class="board" style="background:${color}" aria-label="${label} icon previews">
+        <header><h2>${label}</h2><code>${color}</code></header>
+        <table aria-label="Icons on ${color}">
+          <thead><tr><th scope="col">Icon / SVG</th>${sizes.map(size => `<th scope="col">${size} px</th>`).join('')}</tr></thead>
+          <tbody>${icons.map(name => `<tr><td><a href="${name}.svg" title="Open ${name} SVG">${name}</a></td>${sizes.map(size => `
+            <td><a class="sample" href="${name}-${size}.png" aria-label="${name}, ${size} pixels"><img src="${name}-${size}.png" width="${size}" height="${size}" alt="${name}" loading="eager"></a></td>`).join('')}</tr>`).join('')}</tbody>
+        </table>
+      </section>`).join('');
+  </script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.log
+launcher/settings.json
+launcher/zazuosu-session.txt
+launcher/stub/bin/
+launcher/stub/obj/
+tools/
+runtime/
+bots/
+dist/
