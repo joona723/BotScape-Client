@@ -97,6 +97,7 @@ def main(bot):
             continue
         chicken = pick_chicken(bot)
         if chicken is None:
+            tidy_up(bot, loot_pattern)     # no chicken free: pick up our own feathers still lying around
             bot.wait_ticks(3)              # they respawn quickly
             continue
 
@@ -114,12 +115,20 @@ def main(bot):
                 bot.log(f"Can't reach the chicken at ({chicken['x']}, {chicken['z']}): skipping it for a minute")
                 UNREACHABLE[chicken["index"]] = time.time() + UNREACHABLE_SECONDS
                 continue
-        # Fight until that chicken is gone (dead) or 30 seconds pass.
-        dead = bot.wait_until(lambda: all(n["index"] != chicken["index"] for n in bot.state()["npcs"]), timeout=30)
+        # Fight until that chicken is gone (dead) or 30 seconds pass. Where it is gets followed: it wanders
+        # during the fight, and looting where it stood at the first click left the feathers of every chicken
+        # that died a few tiles away (user-reported: feather piles all over the pen).
+        last = {"at": (chicken["x"], chicken["z"])}
+        def gone():
+            alive = next((n for n in bot.state()["npcs"] if n["index"] == chicken["index"]), None)
+            if alive:
+                last["at"] = (alive["x"], alive["z"])
+            return alive is None
+        dead = bot.wait_until(gone, timeout=30)
         if dead:
             kills += 1
             bot.log(f"Killed chicken #{kills}")
-            loot(bot, loot_pattern, at=(chicken["x"], chicken["z"]))
+            loot(bot, loot_pattern, at=last["at"])
             bury_bones(bot)
 
     # Done: cook and bank what we still carry.
@@ -209,9 +218,11 @@ def loot(bot, pattern, at=None):
     yet; now it waits for the drop where the chicken died, then takes each item and checks it's gone."""
     def here():
         wanted = pattern if hasattr(pattern, "search") else re.compile(pattern, re.I)   # a compiled pattern takes no flags
-        items = [g for g in (bot.state().get("groundItems") or []) if wanted.search(g.get("name", ""))]
+        # User-requested: only our own loot (the server marks drops "mine"; other players' piles stay theirs).
+        items = [g for g in (bot.state().get("groundItems") or []) if wanted.search(g.get("name", ""))
+                 and g.get("mine", True)]
         if at is not None:
-            items = [g for g in items if abs(g["x"] - at[0]) <= 2 and abs(g["z"] - at[1]) <= 2]
+            items = [g for g in items if abs(g["x"] - at[0]) <= 3 and abs(g["z"] - at[1]) <= 3]
         return items
     bot.wait_until(lambda: here(), timeout=4)
     for _ in range(6):
@@ -227,6 +238,28 @@ def loot(bot, pattern, at=None):
         # Taken when that pile is gone (or got smaller): walking to it can take a few ticks.
         key = (item["name"], item["x"], item["z"], item.get("count", 1))
         bot.wait_until(lambda: all((g["name"], g["x"], g["z"], g.get("count", 1)) != key for g in here()), timeout=6)
+
+
+def tidy_up(bot, pattern, radius=6, most=3):
+    """Our own feathers and bones still lying near the bot (kills it lost track of): a few piles, nearest first,
+    while there's no chicken to attack. Other players' loot is left alone (user-requested)."""
+    wanted = pattern if hasattr(pattern, "search") else re.compile(pattern, re.I)
+    me = bot.player
+    for _ in range(most):
+        if bot.inv_full():
+            return
+        piles = [g for g in (bot.state().get("groundItems") or []) if wanted.search(g.get("name", ""))
+                 and g.get("mine") and max(abs(g["x"] - me["x"]), abs(g["z"] - me["z"])) <= radius]
+        if not piles:
+            return
+        pile = min(piles, key=lambda g: max(abs(g["x"] - me["x"]), abs(g["z"] - me["z"])))
+        try:
+            bot.take(pile)
+        except GatewayError:
+            return
+        key = (pile["name"], pile["x"], pile["z"], pile.get("count", 1))
+        bot.wait_until(lambda: all((g["name"], g["x"], g["z"], g.get("count", 1)) != key
+                                   for g in (bot.state().get("groundItems") or [])), timeout=6)
 
 
 def bury_bones(bot):
