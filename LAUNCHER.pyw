@@ -418,24 +418,60 @@ def auth_headers():
     return {"Authorization": "Bearer " + AUTH["token"]} if AUTH["token"] else {}
 
 
+HTTP_CONNS = threading.local()   # per thread: (scheme, host) -> a kept-alive connection
+
+
+def http_send(method, url, data, headers, timeout):
+    """(status, body) over a kept-alive connection per thread and server. User-reported: WMI Provider Host took the
+    server PC's CPU walking ~11,000 closed connections; urllib opened (and closed) one for every request."""
+    import http.client
+    parts = urllib.parse.urlsplit(url)
+    conns = HTTP_CONNS.__dict__.setdefault("by_host", {})
+    key = (parts.scheme, parts.netloc)
+    path = (parts.path or "/") + ("?" + parts.query if parts.query else "")
+    for attempt in range(2):
+        conn = conns.get(key)
+        if conn is None:
+            kind = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
+            conn = conns[key] = kind(parts.netloc, timeout=timeout)
+        reused = conn.sock is not None
+        conn.timeout = timeout
+        if reused:
+            conn.sock.settimeout(timeout)
+        try:
+            conn.request(method, path, body=data, headers=headers)
+            resp = conn.getresponse()
+            body = resp.read()
+            if resp.will_close:
+                conn.close()
+            return resp.status, body
+        except (http.client.RemoteDisconnected, ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            conn.close()
+            conns.pop(key, None)
+            if not reused or attempt:   # only a stale kept-alive connection is worth one more try
+                raise urllib.error.URLError("connection closed") from None
+        except BaseException:
+            conn.close()
+            conns.pop(key, None)
+            raise
+
+
 def http(method, url, body=None, timeout=5, auth=True, _retry=True):
     data = None if body is None else json.dumps(body).encode()
     headers = {"Content-Type": "application/json", "X-BotScape-Via": "hub"}   # the server's login log (user-requested)
     if auth and url.startswith(gateway_url()):
         headers.update(auth_headers())
-    req = urllib.request.Request(url, data=data, method=method, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read() or b"null")
-    except urllib.error.HTTPError as e:
-        if e.code == 401 and auth and _retry and AUTH["token"] and url.startswith(gateway_url()):
+    status, raw = http_send(method, url, data, headers, timeout)
+    if status >= 400:
+        if status == 401 and auth and _retry and AUTH["token"] and url.startswith(gateway_url()):
             # The server restarted (an update) and forgot our sign-in: sign in again.
             AUTH["token"] = None
             return http(method, url, body, timeout, auth, _retry=False)
         try:
-            return json.loads(e.read() or b"{}")
+            return json.loads(raw or b"{}")
         except ValueError:
-            return {"error": f"HTTP {e.code}"}
+            return {"error": f"HTTP {status}"}
+    return json.loads(raw or b"null")
 
 
 def gw(method, path, body=None, timeout=5):
@@ -1338,9 +1374,10 @@ class World:
                 return
         self.auto_clone_wait = time.time() + 600
 
-    # User-requested: with Auto on, the group's other members train by themselves: AIO starts on
-    # every unlocked member that runs nothing (the leader is left to you). A member you stopped by
-    # hand stays stopped until you run something on it, one you play in a client is left alone; one whose AIO ended is retried after 5 min.
+    # User-requested: with Auto on, the group's members train by themselves: AIO starts on every unlocked
+    # member that runs nothing, the leader too (user-requested 2026-11-08: the leader sat offline). A character
+    # you stopped by hand stays stopped until you run something on it, one you play in a client is left alone;
+    # one whose AIO ended is retried after 5 min.
     def maybe_auto_aio(self, characters):
         if not SETTINGS.get("auto_clone", False):
             return
@@ -1351,7 +1388,7 @@ class World:
         running = RUNNER.running()
         for c in characters:
             who = c["name"]
-            if (c["role"] == "main" or not c.get("unlocked") or who in running or c.get("remote") or who in RUNNER.resume
+            if (not c.get("unlocked") or who in running or c.get("remote") or who in RUNNER.resume
                     or who in RUNNER.held or time.time() - self.auto_aio_at.get(who, 0) < 300):
                 continue
             self.auto_aio_at[who] = time.time()

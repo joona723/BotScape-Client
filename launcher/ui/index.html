@@ -6,6 +6,7 @@
 <title>BotScape Hub</title>
 <link rel="icon" type="image/x-icon" href="/brand/hub.ico">
 <style>
+  img.coins { width: 34px !important; height: 26px !important; max-width: none !important; max-height: none !important; object-fit: contain; object-position: center bottom; }
   :root {
     --page: #0f1115; --panel: #161a20; --card: #1d222a; --card-hover: #232a33; --border: #2a313b;
     --text: #e6e8eb; --muted: #8b919c; --faint: #5d6470; --gold: #e0a83a; --gold-dim: #8a6420;
@@ -616,7 +617,7 @@
   <div class="box">
     <img src="/brand/lockup-600.png" alt="Bot Scape" id="setupLockup" style="width:260px;margin-bottom:8px" onerror="this.remove()">
     <h2>Welcome to Bot Scape</h2>
-    <div class="hint">Your character plays itself with scripts. Like a group ironman, as your group's total level grows you unlock members who play alongside you and share your one group bank.</div>
+    <div class="hint">Your character plays itself with scripts. Like a group ironman, as your leader's total level grows you unlock members who play alongside you and share your one group bank.</div>
     <label for="setupName">Character name</label>
     <input id="setupName" maxlength="12" placeholder="e.g. simba">
     <label for="setupPass">Password</label>
@@ -628,7 +629,7 @@
 <div class="setup" id="memberDialog">
   <div class="box">
     <h2 id="memberTitle">New group member</h2>
-    <div class="hint" id="memberHint">Your group's total level unlocked a new member. They share your group bank and play alongside you.</div>
+    <div class="hint" id="memberHint">Your leader's total level unlocked a new member. They share your group bank and play alongside you.</div>
     <label for="memberName">Name</label>
     <input id="memberName" maxlength="12" placeholder="1-12 letters, digits or spaces" autocomplete="off" spellcheck="false">
     <div class="error-text" id="memberError"></div>
@@ -866,7 +867,7 @@ function renderTeam() {
     <div class="hint">${nextText}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
       ${members < unlocked ? `<button class="btn gold small" id="newClone"><img src="/clone-16.png" alt="" style="filter:brightness(0)">+ New character</button>` : ""}
-      <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone" title="Adds members when your total level allows, and runs AIO on the other members"><span class="switch"></span>Auto</div>
+      <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone" title="Adds members when your total level allows, and runs AIO on everyone in the group (not on a character you play in a client or stopped by hand)"><span class="switch"></span>Auto</div>
     </div>`;
   if ($("newClone")) $("newClone").onclick = () => openMemberDialog();
   $("autoClone").onclick = () => post("settings", { auto_clone: !data.autoClone });
@@ -890,7 +891,7 @@ function openMemberDialog(rename) {
   $("memberTitle").textContent = renaming ? `Rename ${renaming}` : "New group member";
   $("memberHint").textContent = renaming
     ? "Pick a new name for this member. Its script is stopped and it's logged out while it's renamed; levels, items and quests stay."
-    : "Your group's total level unlocked a new member. They share your group bank and play alongside you.";
+    : "Your leader's total level unlocked a new member. They share your group bank and play alongside you.";
   $("memberCreate").textContent = renaming ? "Rename" : "Create";
   $("memberName").value = renaming || suggestMemberName();
   $("memberError").textContent = "";
@@ -1245,7 +1246,8 @@ const COIN_PILES = [10000, 1000, 250, 100, 25, 5, 4, 3, 2, 1];
 // picture, the wiki has none under those plain names).
 const RL_ICON = id => `https://static.runelite.net/cache/item/icon/${id}.png`;
 function itemImg(name, count = 1, id) {
-  if (name === "Coins") return `<img src="${wikiFile("Coins " + COIN_PILES.find(n => count >= n))}" alt="" onerror="this.style.display='none'">`;
+  // User-reported: the wiki's coin piles are cropped tight (30x21), so they looked squashed next to 36x32 icons.
+  if (name === "Coins") return `<img class="coins" src="${wikiFile("Coins " + COIN_PILES.find(n => count >= n))}" alt="" onerror="this.style.display='none'">`;
   const alts = [wikiFile(name + " 5")].concat(id != null ? [RL_ICON(id)] : []).join("|");
   return `<img src="${esc(wikiFile(name))}" data-alt="${esc(alts)}" alt=""
     onerror="const a = (this.dataset.alt || '').split('|').filter(Boolean); if (a.length) { this.src = a.shift(); this.dataset.alt = a.join('|'); } else this.style.display = 'none'">`;
