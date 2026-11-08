@@ -987,6 +987,7 @@ CLIENTS_OPEN = {"names": set(), "at": 0.0}
 def clients_open():
     """Lower-case names with a game client of this install open, refreshed at most every 5 s in the background
     (the process query takes about a second; the character list asks every refresh)."""
+    # A scan no longer uses WMI (see java_client_cmdlines), so it can be every 5 s again.
     if time.time() - CLIENTS_OPEN["at"] > 5:
         CLIENTS_OPEN["at"] = time.time()
 
@@ -996,56 +997,110 @@ def clients_open():
     return CLIENTS_OPEN["names"]
 
 
-def client_logins():
-    # User-reported: the client icon lit up with no client open. Only a client with a window counts
-    # (a crashed or half-closed one can linger without), and only this install's (the root, exactly).
-    query = ("@(Get-CimInstance Win32_Process -Filter \"Name='javaw.exe' or Name='java.exe'\" | "
-             "? { $_.CommandLine -like '*botscape.root=" + str(ROOT).replace("'", "''") + "*' -and "
-             "$_.CommandLine -match ('botscape\.root=' + [regex]::Escape('" + str(ROOT).replace("'", "''")
-             + "') + '([\s\x22]|$)') -and "
-             "(Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue).MainWindowHandle -ne 0 } | "
-             "% { $_.CommandLine }) -join [char]10")
+JAVA_CMDLINES = {}   # (pid, start time) -> command line: a process's command line never changes
+
+
+def java_client_cmdlines():
+    """Command lines of this install's game clients that have a window. No WMI: the process list is a
+    Toolhelp snapshot, each new java's command line is read once from the process itself, and windows come
+    from EnumWindows. User-reported: WMI Provider Host at 68 % on the server PC from the hubs' and the
+    monitor's PowerShell process queries."""
+    if os.name != "nt":
+        return []
+    import ctypes
+    from ctypes import wintypes
+    k32, user32, ntdll = ctypes.windll.kernel32, ctypes.windll.user32, ctypes.windll.ntdll
+    k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    k32.OpenProcess.restype = wintypes.HANDLE
+
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD),
+                    ("cntThreads", wintypes.DWORD), ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD),
+                    ("szExeFile", ctypes.c_wchar * 260)]
+
+    pids = []
+    snap = k32.CreateToolhelp32Snapshot(0x2, 0)   # TH32CS_SNAPPROCESS
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        return []
     try:
-        out = subprocess.run(["powershell", "-NoProfile", "-c", query], capture_output=True, text=True,
-                             timeout=20, creationflags=NO_WINDOW).stdout
-    except (OSError, subprocess.SubprocessError):
-        return set()
-    names = set()
-    for line in out.splitlines():
-        # User-reported: with no client open the query still prints an empty line, which counted
-        # as "a client with no login" (the leader's): the leader's client icon lit up.
-        if not line.strip():
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        ok = k32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            if entry.szExeFile.lower() in ("java.exe", "javaw.exe"):
+                pids.append(entry.th32ProcessID)
+            ok = k32.Process32NextW(snap, ctypes.byref(entry))
+    finally:
+        k32.CloseHandle(snap)
+    if not pids:
+        JAVA_CMDLINES.clear()
+        return []
+
+    # Only a client with a window counts (Get-Process' MainWindowHandle: a visible, unowned top-level window).
+    windowed = set()
+    proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def on_window(hwnd, _):
+        if user32.IsWindowVisible(hwnd) and not user32.GetWindow(hwnd, 4):   # GW_OWNER
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            windowed.add(pid.value)
+        return True
+    user32.EnumWindows(proc(on_window), 0)
+
+    class UNICODE_STRING(ctypes.Structure):
+        _fields_ = [("Length", wintypes.USHORT), ("MaximumLength", wintypes.USHORT), ("Buffer", ctypes.c_void_p)]
+
+    seen, out = set(), []
+    for pid in pids:
+        handle = k32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
             continue
+        try:
+            times = [wintypes.FILETIME() for _ in range(4)]
+            if not k32.GetProcessTimes(handle, *[ctypes.byref(t) for t in times]):
+                continue
+            key = (pid, times[0].dwHighDateTime, times[0].dwLowDateTime)
+            if key not in JAVA_CMDLINES:
+                size = wintypes.ULONG(0)
+                ntdll.NtQueryInformationProcess(handle, 60, None, 0, ctypes.byref(size))  # ProcessCommandLineInformation
+                buf = ctypes.create_string_buffer(max(size.value, ctypes.sizeof(UNICODE_STRING)) + 2)
+                if ntdll.NtQueryInformationProcess(handle, 60, buf, len(buf), ctypes.byref(size)) != 0:
+                    continue
+                us = UNICODE_STRING.from_buffer(buf)
+                JAVA_CMDLINES[key] = ctypes.wstring_at(us.Buffer, us.Length // 2) if us.Buffer else ""
+            seen.add(key)
+            if pid in windowed:
+                out.append(JAVA_CMDLINES[key])
+        finally:
+            k32.CloseHandle(handle)
+    for key in set(JAVA_CMDLINES) - seen:
+        del JAVA_CMDLINES[key]
+    # Only this install's clients (the root, exactly: another install's path can start with this one's).
+    mine = re.compile(r"botscape\.root=" + re.escape(str(ROOT)) + r"([\s\"]|$)", re.I)
+    return [line for line in out if mine.search(line)]
+
+
+def client_login_names():
+    names = set()
+    for line in java_client_cmdlines():
         m = re.search(r"-Dbotscape\.login=([^\s\"]*)", line)
         names.add(((m.group(1) if m else "") or SETTINGS.get("main", "")).lower())
     return names
 
 
+def client_logins():
+    try:
+        return client_login_names()
+    except Exception:  # noqa: BLE001 - a failed scan shows no client icons rather than ending the hub
+        return set()
+
+
 def client_open_for(who):
     """Is a Bot Scape game client of this install running as `who`?"""
-    # User-reported: the client icon lit up with no client open. Only a client with a window counts
-    # (a crashed or half-closed one can linger without), and only this install's (the root, exactly).
-    query = ("@(Get-CimInstance Win32_Process -Filter \"Name='javaw.exe' or Name='java.exe'\" | "
-             "? { $_.CommandLine -like '*botscape.root=" + str(ROOT).replace("'", "''") + "*' -and "
-             "$_.CommandLine -match ('botscape\.root=' + [regex]::Escape('" + str(ROOT).replace("'", "''")
-             + "') + '([\s\x22]|$)') -and "
-             "(Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue).MainWindowHandle -ne 0 } | "
-             "% { $_.CommandLine }) -join [char]10")
-    try:
-        out = subprocess.run(["powershell", "-NoProfile", "-c", query], capture_output=True, text=True,
-                             timeout=20, creationflags=NO_WINDOW).stdout
-    except (OSError, subprocess.SubprocessError):
-        return False
-    for line in out.splitlines():
-        # User-reported: with no client open the query still prints an empty line, which counted
-        # as "a client with no login" (the leader's): the leader's client icon lit up.
-        if not line.strip():
-            continue
-        m = re.search(r"-Dbotscape\.login=([^\s\"]*)", line)
-        login = (m.group(1) if m else "") or SETTINGS.get("main", "")
-        if login.lower() == who.lower():
-            return True
-    return False
+    return who.lower() in client_logins()
 
 
 def server_reachable():

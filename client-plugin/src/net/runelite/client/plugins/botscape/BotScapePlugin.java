@@ -72,6 +72,14 @@ public class BotScapePlugin extends Plugin
 		@Override
 		public void keyTyped(java.awt.event.KeyEvent e)
 		{
+			// User-requested: § opens the admin menu (only when the server says this player is an admin).
+			if (e.getKeyChar() != '§' || client.getGameState() != GameState.LOGGED_IN || client.getLocalPlayer() == null)
+			{
+				return;
+			}
+			e.consume();
+			java.awt.Window owner = javax.swing.SwingUtilities.getWindowAncestor(client.getCanvas());
+			AdminMenu.toggle(owner, () -> client.getLocalPlayer() == null ? null : client.getLocalPlayer().getName());
 		}
 
 		@Override

@@ -212,6 +212,34 @@ def near(bot, spot, distance):
     return level == 0 and abs(x - spot[0]) <= distance and abs(z - spot[1]) <= distance
 
 
+# Piles the bot couldn't pick up (across the coop's fence: user-reported, skkke stood outside trying to take
+# "Feather (15)" forever) -> when it may try again.
+SKIP_PILES = {}
+SKIP_SECONDS = 300
+
+
+def skipped(g):
+    return SKIP_PILES.get((g["name"], g["x"], g["z"]), 0) > time.time()
+
+
+def take_or_skip(bot, item, here):
+    """Take a pile; when it's still there afterwards (or the game said it can't reach it), leave it for 5 minutes."""
+    bot.new_messages()
+    try:
+        bot.take(item)
+    except GatewayError as e:          # someone else took it, or it vanished
+        bot.log(f"Couldn't take {item['name']}: {e}")
+        return False
+    # Taken when that pile is gone (or got smaller): walking to it can take a few ticks.
+    key = (item["name"], item["x"], item["z"], item.get("count", 1))
+    taken = bot.wait_until(lambda: all((g["name"], g["x"], g["z"], g.get("count", 1)) != key for g in here()), timeout=6)
+    if not taken or any("can't reach" in m.lower() for m in bot.new_messages()):
+        SKIP_PILES[(item["name"], item["x"], item["z"])] = time.time() + SKIP_SECONDS
+        bot.log(f"Can't get to the {item['name'].lower()} at ({item['x']}, {item['z']}): leaving it for 5 minutes")
+        return False
+    return True
+
+
 def loot(bot, pattern, at=None):
     """Pick up what the chicken dropped. User-reported: kills were often left unlooted. The drop shows up a
     tick or two after the chicken vanishes, and looting looked right away and gave up when nothing was there
@@ -220,7 +248,7 @@ def loot(bot, pattern, at=None):
         wanted = pattern if hasattr(pattern, "search") else re.compile(pattern, re.I)   # a compiled pattern takes no flags
         # User-requested: only our own loot (the server marks drops "mine"; other players' piles stay theirs).
         items = [g for g in (bot.state().get("groundItems") or []) if wanted.search(g.get("name", ""))
-                 and g.get("mine", True)]
+                 and g.get("mine", True) and not skipped(g)]
         if at is not None:
             items = [g for g in items if abs(g["x"] - at[0]) <= 3 and abs(g["z"] - at[1]) <= 3]
         return items
@@ -229,15 +257,8 @@ def loot(bot, pattern, at=None):
         items = here()
         if not items or bot.inv_full():
             return
-        item = items[0]
-        try:
-            bot.take(item)
-        except GatewayError as e:          # someone else took it, or it vanished
-            bot.log(f"Couldn't take {item['name']}: {e}")
+        if not take_or_skip(bot, items[0], here):
             return
-        # Taken when that pile is gone (or got smaller): walking to it can take a few ticks.
-        key = (item["name"], item["x"], item["z"], item.get("count", 1))
-        bot.wait_until(lambda: all((g["name"], g["x"], g["z"], g.get("count", 1)) != key for g in here()), timeout=6)
 
 
 def tidy_up(bot, pattern, radius=6, most=3):
@@ -249,17 +270,12 @@ def tidy_up(bot, pattern, radius=6, most=3):
         if bot.inv_full():
             return
         piles = [g for g in (bot.state().get("groundItems") or []) if wanted.search(g.get("name", ""))
-                 and g.get("mine") and max(abs(g["x"] - me["x"]), abs(g["z"] - me["z"])) <= radius]
+                 and g.get("mine") and not skipped(g) and max(abs(g["x"] - me["x"]), abs(g["z"] - me["z"])) <= radius]
         if not piles:
             return
         pile = min(piles, key=lambda g: max(abs(g["x"] - me["x"]), abs(g["z"] - me["z"])))
-        try:
-            bot.take(pile)
-        except GatewayError:
+        if not take_or_skip(bot, pile, lambda: bot.state().get("groundItems") or []):
             return
-        key = (pile["name"], pile["x"], pile["z"], pile.get("count", 1))
-        bot.wait_until(lambda: all((g["name"], g["x"], g["z"], g.get("count", 1)) != key
-                                   for g in (bot.state().get("groundItems") or [])), timeout=6)
 
 
 def bury_bones(bot):

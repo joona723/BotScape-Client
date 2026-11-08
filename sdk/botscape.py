@@ -28,12 +28,15 @@ same click a real client would make, so the game's rules apply to bots exactly a
 Only the standard library is used.
 """
 
+import http.client
 import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -81,6 +84,51 @@ def sign_in(name, password):
 _VIA = f"{os.path.splitext(os.path.basename(sys.argv[0] or 'script'))[0][:14] or 'script'} {os.getpid()}"
 
 
+class _NotSent(OSError):
+    """The connection never opened: nothing reached the server, so trying again is safe."""
+
+
+_CONN = threading.local()
+
+
+def _send(method, path, data, headers, timeout):
+    """(status, body) over one kept-alive connection per thread. User-reported: WMI Provider Host took the
+    server PC's CPU; netstat showed 11,194 connections on the gateway port: every request opened a new one
+    (urllib closes it), and Windows keeps each closed one for 2 minutes."""
+    url = urllib.parse.urlsplit(GATEWAY)
+    conn = getattr(_CONN, "conn", None)
+    if conn is None or _CONN.url != (url.scheme, url.netloc):
+        kind = http.client.HTTPSConnection if url.scheme == "https" else http.client.HTTPConnection
+        conn = kind(url.netloc, timeout=timeout)
+        _CONN.conn, _CONN.url = conn, (url.scheme, url.netloc)
+    conn.timeout = timeout
+    for attempt in range(2):
+        reused = conn.sock is not None
+        if not reused:
+            try:
+                conn.connect()
+            except OSError as e:
+                conn.close()
+                raise _NotSent(str(e)) from None
+        conn.sock.settimeout(timeout)
+        try:
+            conn.request(method, url.path.rstrip("/") + path, body=data, headers=headers)
+            resp = conn.getresponse()
+            body = resp.read()
+            if resp.will_close:
+                conn.close()
+            return resp.status, body
+        except (http.client.RemoteDisconnected, ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            conn.close()
+            # The server dropped an idle kept-alive connection before reading the request: send it again once
+            # on a new one. On a fresh connection that's a real failure.
+            if not reused or attempt:
+                raise _NotSent("connection closed by the server") from None
+        except BaseException:
+            conn.close()
+            raise
+
+
 def request(method, path, body=None, timeout=15, _retry=True, _attempt=1):
     data = None if body is None else json.dumps(body).encode()
     # The server's login log shows how characters sign in (user-requested): scripts unless told otherwise.
@@ -88,33 +136,32 @@ def request(method, path, body=None, timeout=15, _retry=True, _attempt=1):
     headers = {"Content-Type": "application/json", "X-BotScape-Via": os.environ.get("BOTSCAPE_VIA") or _VIA}
     if TOKEN:
         headers["Authorization"] = "Bearer " + TOKEN
-    req = urllib.request.Request(GATEWAY + path, data=data, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read() or b"null")
-    except urllib.error.HTTPError as e:
-        if e.code == 401 and _retry and CREDENTIALS and path != "/auth":
-            # The server restarted (an update) and forgot our token: sign in again and carry on.
-            sign_in(*CREDENTIALS)
-            return request(method, path, body, timeout, _retry=False)
-        try:
-            payload = json.loads(e.read() or b"{}")
-        except ValueError:
-            payload = {}
-        raise GatewayError(payload.get("error") or f"HTTP {e.code} for {path}") from None
-    except urllib.error.URLError as e:
+        status, raw = _send(method, path, data, headers, timeout)
+    except _NotSent as e:
         # A connection that never opened (timed out, refused, reset) means nothing was sent: try again a
         # few times before giving up. One failed connect stopped whole runs and the AIO then paused that
         # skill for 30 minutes (2026-11-01: dozens of "timed out" stops in an hour).
         if _attempt < 4:
             time.sleep(2 * _attempt)
             return request(method, path, body, timeout, _retry, _attempt + 1)
-        raise GatewayError(f"Bot gateway is not reachable at {GATEWAY} ({e.reason}). Is the server running?") from None
+        raise GatewayError(f"Bot gateway is not reachable at {GATEWAY} ({e}). Is the server running?") from None
     except TimeoutError:
         # No answer in time: a GET (reading the state) is safe to ask again; an action might have happened.
         if method == "GET" and _attempt < 3:
             return request(method, path, body, timeout, _retry, _attempt + 1)
         raise
+    if status >= 400:
+        if status == 401 and _retry and CREDENTIALS and path != "/auth":
+            # The server restarted (an update) and forgot our token: sign in again and carry on.
+            sign_in(*CREDENTIALS)
+            return request(method, path, body, timeout, _retry=False)
+        try:
+            payload = json.loads(raw or b"{}")
+        except ValueError:
+            payload = {}
+        raise GatewayError((payload.get("error") if isinstance(payload, dict) else None) or f"HTTP {status} for {path}")
+    return json.loads(raw or b"null")
 
 
 def report_activity(name, text, script=SCRIPT_NAME):
