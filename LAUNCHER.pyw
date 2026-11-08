@@ -139,6 +139,8 @@ PROFILE = {"name": None, "avatar": None}
 # launcher (that one updates the game itself).
 UPDATE = {"latest": None}
 MANIFEST_URL = "https://zazuosu.com/downloads/botscape/manifest.json"
+NEWS_URL = "https://zazuosu.com/osrs/api/news"
+NEWS = {"at": 0.0, "posts": []}
 
 
 def installed_version():
@@ -1694,6 +1696,15 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         if url.path == "/api/overview":
             return self.send(200, WORLD.get())
+        if url.path == "/api/news":
+            # User-requested: the website's News in the hub too (zazuosu.com/osrs/api/news, cached a minute).
+            if time.time() - NEWS["at"] > 60:
+                try:
+                    NEWS["posts"] = (http("GET", NEWS_URL, timeout=8, auth=False) or {}).get("posts") or NEWS["posts"]
+                    NEWS["at"] = time.time()
+                except Exception:  # noqa: BLE001 - offline: the last ones
+                    pass
+            return self.send(200, {"posts": NEWS["posts"]})
         if url.path == "/api/hiscores":
             try:
                 return self.send(200, gw("GET", "/hiscores", timeout=10) or {})

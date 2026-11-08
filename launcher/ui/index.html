@@ -6,6 +6,16 @@
 <title>BotScape Hub</title>
 <link rel="icon" type="image/x-icon" href="/brand/hub.ico">
 <style>
+  #news { max-width: 760px; margin: 0 auto; padding: 4px 4px 24px; display: grid; gap: 14px; }
+  .news-post { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
+  .news-post h3 { margin: 0 0 4px; font-size: 17px; color: var(--text); }
+  .news-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+  .news-head > div { flex: 1; min-width: 0; }
+  .news-meta { font-size: 12px; color: var(--muted); } .news-meta b { color: var(--text); }
+  .news-av { position: relative; flex: none; width: 40px; height: 40px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; color: #fff; font-weight: 700; }
+  .news-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .news-body p { margin: 0 0 10px; line-height: 1.55; color: var(--text); white-space: pre-line; }
+  .news-body p:last-child { margin-bottom: 0; }
   img.coins { width: 34px !important; height: 26px !important; max-width: none !important; max-height: none !important; object-fit: contain; object-position: center bottom; }
   :root {
     --page: #0f1115; --panel: #161a20; --card: #1d222a; --card-hover: #232a33; --border: #2a313b;
@@ -585,6 +595,7 @@
         <button class="tab" data-view="bank"><img class="tab-icon" src="/group-bank-16.png" onerror="this.src='/bank-16.png'" alt="">Group bank <span class="count" id="bankCount"></span></button>
         <button class="tab" data-view="hiscores"><img class="tab-icon" src="/hiscores-16.png" alt="">Highscores</button>
         <button class="tab" data-view="output"><img class="tab-icon" src="/output-16.png" alt="">Output</button>
+        <button class="tab" data-view="news" style="margin-left:auto"><img class="tab-icon" src="/output-16.png" alt="">News</button>
       </nav>
       <section class="view active" id="view-scripts">
         <div class="toolbar">
@@ -600,6 +611,7 @@
         <div class="toolbar" id="filters"></div>
         <div class="console" id="console"></div>
       </section>
+      <section class="view" id="view-news"><div id="news"></div></section>
       <section class="view" id="view-skills"><div id="skills"></div></section>
       <section class="view" id="view-bank"><div id="bank"></div></section>
       <section class="view" id="view-hiscores">
@@ -686,6 +698,20 @@ const shown = c => (c && (c.display || c.name)) || "";
 let data = null, selected = null, view = "scripts", outputAfter = 0, outputFilter = null, colors = {};
 const lines = [];
 
+const ADMIN_CROWN = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAAbElEQVR4nJ2S0QnAMAhEL/1wkazQkbpLlshIWaGL+OH1SwipodQDQQ/xiQhkNHrlb5/WuDbQGtUk9EevPFLrrVO99lj9PCmavgun5kkzDQABvPL5kiFJTSCHQk1CQGq94snuA2ad112+erZ6AKD/etZthAXXAAAAAElFTkSuQmCC" alt="Admin" title="Admin" style="width:13px;height:13px;vertical-align:-1px;image-rendering:pixelated"> ';
+// User-requested: the website's News in the hub (read only; written on the website by the news admins).
+async function loadNews() {
+  let posts = [];
+  try { posts = (await (await fetch("/api/news", { cache: "no-store" })).json()).posts || []; } catch (e) { /* offline */ }
+  $("news").innerHTML = posts.length ? posts.map(p => {
+    const key = String(p.author || "?").toLowerCase();
+    const av = `<span class="news-av" style="background:${colorFor(key)}">${esc(key[0].toUpperCase())}<img src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="this.remove()"></span>`;
+    const date = new Date(p.at * 1000).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+    return `<article class="news-post"><div class="news-head">${av}<div><h3>${esc(p.title)}</h3>
+      <div class="news-meta">${p.author ? `<b>${p.admin !== false ? ADMIN_CROWN : ""}${esc(p.author)}</b> · ` : ""}${date}${p.edited ? " · edited" : ""}</div></div></div>
+      <div class="news-body">${String(p.body).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join("")}</div></article>`;
+  }).join("") : `<div class="hint" style="padding:16px">No news yet (or the website can't be reached).</div>`;
+}
 function colorFor(name) {
   if (data && name === data.main) return "#e0a83a";
   if (!colors[name]) colors[name] = COLORS[Object.keys(colors).length % COLORS.length];
@@ -1781,6 +1807,7 @@ $("tabs").onclick = e => {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
   if (view === "output") renderConsole();
   if (view === "hiscores") loadHiscores();
+  if (view === "news") loadNews();
   if (data) renderHeader();
 };
 $("search").oninput = renderScripts;
