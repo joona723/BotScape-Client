@@ -141,6 +141,43 @@ UPDATE = {"latest": None}
 MANIFEST_URL = "https://zazuosu.com/downloads/botscape/manifest.json"
 NEWS_URL = "https://zazuosu.com/osrs/api/news"
 NEWS = {"at": 0.0, "posts": []}
+NEWS_ADMIN = {"at": 0.0, "value": False}
+
+
+def website(method, path, body=None, timeout=10):
+    """zazuosu.com/osrs's own API, signed in with this hub's zazuosu account (the web page's sign-in)."""
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request("https://zazuosu.com/osrs/" + path, data=data, method=method,
+                                 headers={"Content-Type": "application/json", "X-BS-Token": zazuosu_token(),
+                                          "User-Agent": "BotScape-hub"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        try:
+            return json.loads(e.read() or b"{}") | {"status": e.code}
+        except ValueError:
+            return {"error": f"The website said {e.code}."}
+
+
+def news_admin():
+    """User-requested: news admins write and edit the News from the hub too (asked every 5 minutes)."""
+    if time.time() - NEWS_ADMIN["at"] > 300 and zazuosu_token():
+        NEWS_ADMIN["at"] = time.time()
+        try:
+            NEWS_ADMIN["value"] = bool(website("GET", "api/me", timeout=8).get("newsAdmin"))
+        except Exception:  # noqa: BLE001 - offline: as before
+            pass
+    return NEWS_ADMIN["value"]
+
+
+def post_news(body):
+    """A new post, an edit or a delete, sent to the website (its own admin check decides)."""
+    answer = website("POST", "api/news", {k: body[k] for k in ("id", "title", "body", "delete") if k in body})
+    if answer.get("error"):
+        return answer["error"]
+    NEWS["at"] = 0.0   # read them again
+    return None
 
 
 def installed_version():
@@ -1646,6 +1683,7 @@ def setup_account(main, password):
 
 
 ACTIONS = {
+    "news": post_news,
     "run": lambda b: run_here(b["character"], b["script"]),
     "stop": lambda b: stop_character(b["character"]),
     "run-team": lambda b: [run_here(c["name"], b["script"]) for c in WORLD.get().get("characters", [])
@@ -1704,7 +1742,7 @@ class Handler(BaseHTTPRequestHandler):
                     NEWS["at"] = time.time()
                 except Exception:  # noqa: BLE001 - offline: the last ones
                     pass
-            return self.send(200, {"posts": NEWS["posts"]})
+            return self.send(200, {"posts": NEWS["posts"], "newsAdmin": news_admin()})
         if url.path == "/api/hiscores":
             try:
                 return self.send(200, gw("GET", "/hiscores", timeout=10) or {})

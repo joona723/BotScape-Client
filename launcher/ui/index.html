@@ -6,6 +6,14 @@
 <title>BotScape Hub</title>
 <link rel="icon" type="image/x-icon" href="/brand/hub.ico">
 <style>
+  .news-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .news-tools { margin-left: auto; display: flex; gap: 6px; }
+  .news-tools button { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border, #3a4250); background: transparent; color: var(--muted); cursor: pointer; }
+  .news-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); }
+  .news-form input, .news-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border, #3a4250);
+    background: rgba(0,0,0,.2); color: var(--text); font: inherit; }
+  .news-form textarea { min-height: 140px; resize: vertical; }
+  .news-form .row { display: flex; gap: 8px; justify-content: flex-end; }
   #news { max-width: 760px; margin: 0 auto; padding: 4px 4px 24px; display: grid; gap: 14px; }
   .news-post { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
   .news-post h3 { margin: 0 0 4px; font-size: 17px; color: var(--text); }
@@ -700,17 +708,43 @@ const lines = [];
 
 const ADMIN_CROWN = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAAbElEQVR4nJ2S0QnAMAhEL/1wkazQkbpLlshIWaGL+OH1SwipodQDQQ/xiQhkNHrlb5/WuDbQGtUk9EevPFLrrVO99lj9PCmavgun5kkzDQABvPL5kiFJTSCHQk1CQGq94snuA2ad112+erZ6AKD/etZthAXXAAAAAElFTkSuQmCC" alt="Admin" title="Admin" style="width:13px;height:13px;vertical-align:-1px;image-rendering:pixelated"> ';
 // User-requested: the website's News in the hub (read only; written on the website by the news admins).
+let newsEditing = null, newsAdmin = false, newsPosts = [];
 async function loadNews() {
-  let posts = [];
-  try { posts = (await (await fetch("/api/news", { cache: "no-store" })).json()).posts || []; } catch (e) { /* offline */ }
-  $("news").innerHTML = posts.length ? posts.map(p => {
+  try { const r = await (await fetch("/api/news", { cache: "no-store" })).json(); newsPosts = r.posts || []; newsAdmin = !!r.newsAdmin; }
+  catch (e) { /* offline */ }
+  renderNews();
+}
+function newsForm(post) {
+  return `<div class="news-form"><b>${post ? "Edit post" : "Write a post"}</b>
+    <input id="newsTitle" maxlength="120" placeholder="Title" value="${esc(post ? post.title : "")}">
+    <textarea id="newsBody" placeholder="What's going on? A blank line starts a new paragraph.">${esc(post ? post.body : "")}</textarea>
+    <div class="row">${post ? `<button class="btn" onclick="newsEditing=null;renderNews()">Cancel</button>` : ""}
+      <button class="btn gold" onclick="saveNews()">${post ? "Save" : "Post"}</button></div></div>`;
+}
+async function saveNews() {
+  const body = { title: $("newsTitle").value, body: $("newsBody").value };
+  if (newsEditing !== null) body.id = newsEditing;
+  const r = await post("news", body);
+  if (r && r.error) return;   // post() shows it
+  newsEditing = null; loadNews();
+}
+async function deleteNews(id) {
+  if (!confirm("Delete this post?")) return;
+  const r = await post("news", { id, delete: true });
+  if (r && r.error) return;   // post() shows it
+  loadNews();
+}
+function renderNews() {
+  const posts = newsPosts;
+  $("news").innerHTML = (newsAdmin && newsEditing === null ? newsForm(null) : "") + (posts.length ? posts.map(p => newsEditing === p.id ? newsForm(p) : (() => {
     const key = String(p.author || "?").toLowerCase();
     const av = `<span class="news-av" style="background:${colorFor(key)}">${esc(key[0].toUpperCase())}<img src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="this.remove()"></span>`;
     const date = new Date(p.at * 1000).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
     return `<article class="news-post"><div class="news-head">${av}<div><h3>${esc(p.title)}</h3>
-      <div class="news-meta">${p.author ? `<b>${p.admin !== false ? ADMIN_CROWN : ""}${esc(p.author)}</b> · ` : ""}${date}${p.edited ? " · edited" : ""}</div></div></div>
+      <div class="news-meta">${p.author ? `<b>${p.admin !== false ? ADMIN_CROWN : ""}${esc(p.author)}</b> · ` : ""}${date}${p.edited ? " · edited" : ""}
+        ${newsAdmin ? `<span class="news-tools"><button onclick="newsEditing=${p.id};renderNews()">Edit</button><button onclick="deleteNews(${p.id})">Delete</button></span>` : ""}</div></div></div>
       <div class="news-body">${String(p.body).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join("")}</div></article>`;
-  }).join("") : `<div class="hint" style="padding:16px">No news yet (or the website can't be reached).</div>`;
+  })()).join("") : `<div class="hint" style="padding:16px">No news yet (or the website can't be reached).</div>`);
 }
 function colorFor(name) {
   if (data && name === data.main) return "#e0a83a";
