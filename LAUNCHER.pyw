@@ -1763,6 +1763,7 @@ def setup_account(main, password):
 
 ACTIONS = {
     "news": post_news,
+    "forum": lambda b: website("POST", "api/forum", b).get("error"),
     "run": lambda b: run_here(b["character"], b["script"]),
     "stop": lambda b: stop_character(b["character"]),
     "run-team": lambda b: [run_here(c["name"], b["script"]) for c in WORLD.get().get("characters", [])
@@ -1817,6 +1818,13 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         if url.path == "/api/overview":
             return self.send(200, WORLD.get())
+        if url.path == "/api/forum":
+            # User-requested (2026-11-09): the website's Forum in the hub too, read and written through the website
+            # with this hub's zazuosu sign-in (it checks the limits and who may pin or delete).
+            try:
+                return self.send(200, website("GET", "api/forum" + (f"?{url.query}" if url.query else ""), timeout=10))
+            except Exception:  # noqa: BLE001 - offline
+                return self.send(200, {"threads": [], "me": None, "error": "Couldn't reach the forum."})
         if url.path == "/api/news":
             # User-requested: the website's News in the hub too (zazuosu.com/osrs/api/news, cached a minute).
             if time.time() - NEWS["at"] > 60:

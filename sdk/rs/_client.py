@@ -293,7 +293,9 @@ class SyncClient:
 
     def wait_for_ticks(self, ticks=1):
         start = self._raw()["state"]["tick"]
-        end = time.monotonic() + max(5, (ticks or 1) * 1.2 + 3)
+        # Waits out a stalled server: 5 s stopped simba's scripts during slow ticks ("Server snapshots stopped
+        # advancing", 26 times on 2026-11-09, none at a restart). A server that's really gone still ends it.
+        end = time.monotonic() + max(30, (ticks or 1) * 1.2 + 20)
         while time.monotonic() < end:
             if self._raw()["state"]["tick"] >= start + (ticks or 1):
                 return self.get_state()
@@ -755,12 +757,28 @@ class SyncClient:
                 break
             time.sleep(0.3)
         combat_skills = ("attack", "strength", "defence", "ranged", "magic", "hitpoints")
-        # Started = fighting it (a tick later), not its first damaging hit: at low levels most hits
-        # are 0s and that wait idled for seconds (user-reported: scripts slow to fight).
-        return self._wait(lambda s: (s["tick"] > before["tick"] and s["player"].get("interacting"))
-                          or any(n["index"] == npc.index and n["hp"] < npc.hp for n in s["npcs"])
-                          or any(s["stats"].get(k, {}).get("xp", 0) > before["stats"].get(k, {}).get("xp", 0)
-                                 for k in combat_skills), (timeout or 30000) / 1000)
+        gone = {"yes": False}
+
+        def started(s):
+            # Started = fighting it (a tick later), not its first damaging hit: at low levels most hits
+            # are 0s and that wait idled for seconds (user-reported: scripts slow to fight).
+            if ((s["tick"] > before["tick"] and s["player"].get("interacting"))
+                    or any(n["index"] == npc.index and n["hp"] < npc.hp for n in s["npcs"])
+                    or any(s["stats"].get(k, {}).get("xp", 0) > before["stats"].get(k, {}).get("xp", 0)
+                           for k in combat_skills)):
+                return True
+            # User-reported 2026-11-09 (AIO Fighter slow to move on): the monster died or left before we got
+            # to it (someone else's kill) and this waited the whole 30 s. Give up at once instead.
+            target = next((n for n in s["npcs"] if n["index"] == npc.index), None)
+            if target is None or (target.get("hp") or 0) <= 0:
+                gone["yes"] = True
+                return True
+            return False
+
+        outcome = self._wait(started, (timeout or 30000) / 1000)
+        if gone["yes"]:
+            return result(False, "The target died or left first", reason="gone")
+        return outcome
 
     # Shops go through the gateway now (they were placeholders that always failed: AIO couldn't buy
     # its first net, axe or pickaxe).

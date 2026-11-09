@@ -7,6 +7,46 @@
 <link rel="icon" type="image/x-icon" href="/brand/hub.ico">
 <style>
   .news-meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  /* Forum (user-requested 2026-11-09): threads, replies, pinned threads, the admin crown, profile pictures. */
+  .forum-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .forum-top h2 { margin: 0; font-size: 18px; }
+  .forum-top .hint { color: var(--muted); font-size: 12.5px; }
+  .forum-top .grow { flex: 1; }
+  .forum-list { display: grid; gap: 8px; }
+  .forum-row { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
+  .forum-row:hover { border-color: #4a5462; }
+  .forum-row.pinned { border-color: var(--gold-dim, #8a6420); background: linear-gradient(90deg, rgba(224,168,58,.08), transparent 60%); }
+  .forum-row .main { flex: 1; min-width: 0; }
+  .forum-row .t { font-weight: 600; font-size: 14.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .forum-row .m, .forum-post .m { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .forum-row .m b, .forum-post .m b { color: var(--text); font-weight: 600; }
+  .forum-row .count { flex: none; text-align: center; font-size: 12px; color: var(--muted); min-width: 52px; }
+  .forum-row .count b { display: block; font-size: 16px; color: var(--text); }
+  .forum-pin { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--gold, #e0a83a);
+    border: 1px solid var(--gold-dim, #8a6420); border-radius: 999px; padding: 0 7px; margin-right: 6px; vertical-align: 1px; }
+  .forum-av { position: relative; flex: none; width: 38px; height: 38px; border-radius: 50%; overflow: hidden; display: grid;
+    place-items: center; color: #fff; font-weight: 700; }
+  .forum-av img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .forum-post { display: flex; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border, #3a4250);
+    background: var(--card, rgba(255,255,255,.02)); }
+  .forum-post.op { border-color: #4a5462; }
+  .forum-post .main { flex: 1; min-width: 0; }
+  .forum-post h3 { margin: 0 0 2px; font-size: 17px; }
+  .forum-post .body { display: block; }
+  .forum-post .body p { margin: 8px 0 0; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; }
+  .forum-post .m { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .forum-tools { margin-left: auto; display: inline-flex; gap: 6px; }
+  .forum-tools button { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border, #3a4250);
+    background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; }
+  .forum-tools button:hover { color: var(--text); }
+  .forum-thread { display: grid; gap: 8px; }
+  .forum-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); margin-bottom: 12px; }
+  .forum-form input, .forum-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--border, #3a4250); background: #0f1317; color: var(--text); font: inherit; }
+  .forum-form textarea { min-height: 110px; resize: vertical; }
+  .forum-form .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+  .forum-form .row .hint { margin-right: auto; color: var(--muted); font-size: 12px; }
   .news-tools { margin-left: auto; display: flex; gap: 6px; }
   .news-tools button { font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border, #3a4250); background: transparent; color: var(--muted); cursor: pointer; }
   .news-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); }
@@ -635,6 +675,7 @@
         <button class="tab" data-view="hiscores"><img class="tab-icon" src="/hiscores-16.png" alt="">Highscores</button>
         <button class="tab" data-view="output"><img class="tab-icon" src="/output-16.png" alt="">Output</button>
         <button class="tab" data-view="news" style="margin-left:auto"><img class="tab-icon" src="/output-16.png" alt="">News</button>
+        <button class="tab" data-view="forum"><img class="tab-icon" src="/output-16.png" alt="">Forum</button>
       </nav>
       <section class="view active" id="view-scripts">
         <div class="toolbar">
@@ -651,6 +692,7 @@
         <div class="console" id="console"></div>
       </section>
       <section class="view" id="view-news"><div id="news"></div></section>
+      <section class="view" id="view-forum"><div id="forum"></div></section>
       <section class="view" id="view-skills"><div id="skills"></div></section>
       <section class="view" id="view-bank"><div id="bank"></div></section>
       <section class="view" id="view-hiscores">
@@ -759,6 +801,101 @@ async function saveNews() {
   if (r && r.error) return;   // post() shows it
   newsEditing = null; loadNews();
 }
+// --- forum (user-requested 2026-11-09) -----------------------------------------------------------------------------
+// Threads and replies are plain text, always shown through esc() (never as HTML), so nobody can slip in a <script>;
+// the server takes HTML tags out too. Pinned threads first, then the most recently active.
+let forum = { threads: [], me: null, open: null, thread: null, writing: false };
+function forumAv(user, name) {
+  const key = String(user || name || "?").toLowerCase();
+  return `<span class="forum-av" style="background:${colorFor(key)}">${esc(String(name || key)[0].toUpperCase())}` +
+    `<img src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="this.remove()"></span>`;
+}
+function forumWhen(t) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)} d ago`;
+  return new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+function forumWho(p) { return `${p.admin ? ADMIN_CROWN : ""}<b>${esc(p.author)}</b>`; }
+function forumParas(text) { return String(text).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join(""); }
+function forumMine(p) { return !!(forum.me && p.user && p.user.toLowerCase() === String(forum.me.user).toLowerCase()); }
+async function loadForum() {
+  try {
+    if (forum.open !== null) {
+      const r = await forumGet("?thread=" + forum.open);
+      if (r.error && !r.thread) { forum.open = null; return loadForum(); }
+      forum.thread = r.thread; forum.me = r.me;
+    } else {
+      const r = await forumGet("");
+      forum.threads = r.threads || []; forum.me = r.me;
+    }
+  } catch (e) { $("forum").innerHTML = `<div class="hint">Couldn't load the forum.</div>`; return; }
+  renderForum();
+}
+function renderForum() {
+  const me = forum.me;
+  if (forum.open !== null && forum.thread) return renderForumThread();
+  const form = forum.writing ? `<div class="forum-form">
+      <b>New thread</b>
+      <input id="forumTitle" maxlength="100" placeholder="Title">
+      <textarea id="forumBody" maxlength="4000" placeholder="What do you want to talk about? A blank line starts a new paragraph."></textarea>
+      <div class="row"><span class="hint">Plain text. Be nice!</span>
+        <button class="btn small" onclick="forum.writing=false;renderForum()">Cancel</button>
+        <button class="btn gold small" onclick="forumNewThread()">Post thread</button></div></div>` : "";
+  const rows = forum.threads.map(t => `<div class="forum-row ${t.pinned ? "pinned" : ""}" onclick="forumOpen(${Number(t.id)})">
+      ${forumAv(t.user, t.author)}
+      <div class="main"><div class="t">${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</div>
+        <div class="m">${forumWho(t)} · ${forumWhen(t.at)}${t.replies ? ` · last reply by <b>${esc(t.lastBy)}</b> ${forumWhen(t.last)}` : ""}</div></div>
+      <div class="count"><b>${Number(t.replies)}</b>${t.replies === 1 ? "reply" : "replies"}</div></div>`).join("");
+  $("forum").innerHTML = `<div class="forum-top"><h2>Forum</h2><span class="hint">${forum.threads.length} thread${forum.threads.length === 1 ? "" : "s"}</span>
+      <span class="grow"></span>${me ? (forum.writing ? "" : `<button class="btn gold small" onclick="forum.writing=true;renderForum()">+ New thread</button>`)
+        : `<span class="hint">Sign in to post</span>`}</div>${form}
+    <div class="forum-list">${rows || `<div class="hint">No threads yet. Start the first one!</div>`}</div>`;
+}
+function renderForumThread() {
+  const t = forum.thread, me = forum.me, admin = !!(me && me.admin);
+  const tools = (p, reply) => (admin || forumMine(p)) ? `<button onclick="forumDelete(${Number(t.id)}, ${reply ? Number(p.id) : 0})">Delete</button>` : "";
+  const op = `<article class="forum-post op">${forumAv(t.user, t.author)}<div class="main">
+      <h3>${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</h3>
+      <div class="m">${forumWho(t)} · ${forumWhen(t.at)}
+        <span class="forum-tools">${admin ? `<button onclick="forumPin(${Number(t.id)}, ${t.pinned ? "false" : "true"})">${t.pinned ? "Unpin" : "Pin to top"}</button>` : ""}${tools(t, false)}</span></div>
+      <div class="body">${forumParas(t.body)}</div></div></article>`;
+  const replies = (t.replies || []).map(r => `<article class="forum-post">${forumAv(r.user, r.author)}<div class="main">
+      <div class="m">${forumWho(r)} · ${forumWhen(r.at)}<span class="forum-tools">${tools(r, true)}</span></div>
+      <div class="body">${forumParas(r.body)}</div></div></article>`).join("");
+  const box = me ? `<div class="forum-form" style="margin:4px 0 0">
+      <textarea id="forumReply" maxlength="2000" placeholder="Write a reply…"></textarea>
+      <div class="row"><span class="hint">Plain text.</span><button class="btn gold small" onclick="forumReply(${Number(t.id)})">Reply</button></div></div>`
+    : `<div class="hint">Sign in to reply.</div>`;
+  $("forum").innerHTML = `<div class="forum-top"><button class="btn small" onclick="forum.open=null;forum.thread=null;loadForum()">‹ All threads</button>
+      <span class="hint">${(t.replies || []).length} replies</span></div>
+    <div class="forum-thread">${op}${replies}${box}</div>`;
+}
+function forumOpen(id) { forum.open = id; forum.thread = null; loadForum(); }
+async function forumDo(body, then) {
+  const r = await forumPost(body);
+  if (r && r.error) return false;
+  if (then) then(r);
+  loadForum();
+  return true;
+}
+function forumNewThread() {
+  forumDo({ action: "thread", title: $("forumTitle").value, body: $("forumBody").value }, r => {
+    forum.writing = false;
+    if (r && r.thread) forum.open = r.thread;
+  });
+}
+function forumReply(id) { forumDo({ action: "reply", thread: id, body: $("forumReply").value }); }
+function forumPin(id, pinned) { forumDo({ action: "pin", thread: id, pinned }); }
+function forumDelete(id, reply) {
+  if (!confirm(reply ? "Delete this reply?" : "Delete this whole thread?")) return;
+  forumDo(reply ? { action: "delete", thread: id, reply } : { action: "delete", thread: id }, () => { if (!reply) { forum.open = null; forum.thread = null; } });
+}
+// The hub's forum calls go through the hub, which asks the website with this hub's zazuosu sign-in.
+async function forumGet(q) { return (await fetch("/api/forum" + q, { cache: "no-store" })).json(); }
+async function forumPost(body) { return post("forum", body); }   // post() shows any error
 async function deleteNews(id) {
   if (!confirm("Delete this post?")) return;
   const r = await post("news", { id, delete: true });
@@ -1945,6 +2082,7 @@ $("tabs").onclick = e => {
   if (view === "output") renderConsole();
   if (view === "hiscores") loadHiscores();
   if (view === "news") loadNews();
+  if (view === "forum") loadForum();
   if (data) renderHeader();
 };
 $("search").oninput = renderScripts;
