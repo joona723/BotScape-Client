@@ -48,6 +48,11 @@ CONTENT = [
     # Not the Bot Scape script pack (scripts/botscape): it stays on the host PC (2026-10-30).
     # Only these Bot Scape originals ship with the game (they show under "Bot Scape scripts").
     ("scripts/botscape/Lumby Chicken Killer.py", "scripts/botscape/Lumby Chicken Killer.py"),
+    # The vote shop's scripts (user-requested 2026-11-09: in the hub too): locked until bought with vote points.
+    *[(f"scripts/botscape/{n}.py", f"scripts/botscape/{n}.py") for n in
+      ("Lumby Cow Killer", "Lumby Thiever", "Lumby Fisher", "Cowhide Crafter", "Lumby Cooker")],
+    ("scripts/botscape/lib/__init__.py", "scripts/botscape/lib/__init__.py"),
+    ("scripts/botscape/lib/lumby.py", "scripts/botscape/lib/lumby.py"),
     ("scripts/templates", "scripts/templates"),
     ("assets/icons", "assets/icons"),
     ("assets/brand", "assets/brand"),

@@ -207,9 +207,13 @@ class Bot:
     def __init__(self, name, password=None):
         self.name = name.lower()
         self.password = password
+        # The password is the main's (bot.env), so sign in as the main: its token covers every clone. Signing in
+        # as the clone checked the main's password against the clone's own and failed (problems log 2026-11-09:
+        # after a restart 4 clones got "Wrong character name or password" and locked 127.0.0.1 out for everyone).
+        self.account = (os.environ.get("BOT_MAIN") or self.name).lower()
         global CREDENTIALS
         if password and CREDENTIALS is None:
-            CREDENTIALS = (self.name, password)
+            CREDENTIALS = (self.account, password)
         self._state = None
         self._chat_seen = 0
 
@@ -220,7 +224,7 @@ class Bot:
         if not TOKEN:
             if not self.password:
                 raise GatewayError(f"No password for {self.name}: put PASSWORD=... in bot.env")
-            sign_in(self.name, self.password)
+            sign_in(self.account, self.password)
         status = self.status()
         if status != "online":
             if not self.password:
@@ -636,8 +640,14 @@ class Bot:
         """The highest Slayer master this bot can use (combat level and Slayer level)."""
         combat = self.player.get("combatLevel") or 3
         slayer = self.level("slayer")
+        # The quest that lets you reach each master (problems log 2026-11-09: Slayer walked to Mazchna in Canifis
+        # and the Paterdomus barrier turned it back: "You need to complete Priest in Peril to pass").
+        reach = {"Mazchna": "Priest in Peril", "Chaeldar": "Lost City", "Duradel": "Shilo Village"}
         for name, need_combat, need_slayer in (("Duradel", 100, 50), ("Nieve", 85, 1), ("Chaeldar", 70, 1),
                                                ("Vannaka", 40, 1), ("Mazchna", 20, 1)):
+            quest = self.quest(reach[name]) if name in reach else None
+            if name in reach and (quest or {}).get("status") != "done":
+                continue
             if combat >= need_combat and slayer >= need_slayer:
                 return name
         return "Spria"
@@ -881,9 +891,15 @@ def run(main):
     """
     args = sys.argv[1:]
     script_main = Path(sys.argv[0]).resolve().parent.name
-    main_name = args[args.index("--main") + 1] if "--main" in args else script_main
-    character = args[0] if args and not args[0].startswith("--") else main_name
+    # AIO starts skill scripts with no character on the command line: it sets BOT_MAIN (the main) and RS_BOT
+    # (the main or a clone) instead, like lib/core.py reads (problems log 2026-11-09: Construction and Slayer
+    # tried to sign in as "botscape", the scripts folder's name).
+    main_name = (args[args.index("--main") + 1] if "--main" in args
+                 else os.environ.get("BOT_MAIN") or script_main)
+    character = (args[0] if args and not args[0].startswith("--")
+                 else os.environ.get("RS_BOT") or main_name)
     env = read_env(main_name)
+    os.environ.setdefault("BOT_MAIN", main_name)      # Bot signs in as the main (see Bot.__init__)
     bot = Bot(character, env.get("PASSWORD"))
     try:
         bot.login()

@@ -817,8 +817,64 @@ def script_sync_loop():
 
 
 def list_scripts():
-    """Bot Scape's own scripts first, then the player's (bots/<main>/*.py)."""
-    return script_entries(PACKAGED_SCRIPTS, "botscape") + script_entries(bot_dir(), "mine")
+    """Bot Scape's own scripts first, then the player's (bots/<main>/*.py). Vote-shop scripts carry whether
+    this account has unlocked them (locked, cost, shopId), as on the website."""
+    packaged = script_entries(PACKAGED_SCRIPTS, "botscape")
+    shop = vote_state()["shop"]
+    for entry in packaged:
+        item = shop.get(entry["name"])
+        if item:
+            entry.update(shop=True, locked=bool(item.get("locked")), cost=item.get("cost"), shopId=item.get("shopId"))
+    return packaged + script_entries(bot_dir(), "mine")
+
+
+# User-requested (2026-11-09): the hub has the website's vote shop. Some Bot Scape scripts are unlocked with vote
+# points; the website says which (its /api/scripts, which also knows the host's exempt accounts) and keeps the
+# points. Asked in the background at most every 30 s. Not signed in to zazuosu or the website down: none locked.
+VOTES = {"at": 0.0, "busy": False, "shop": {}, "votes": None}
+
+
+def refresh_votes():
+    try:
+        scripts = website("GET", "api/scripts", timeout=8)
+        if isinstance(scripts.get("scripts"), list):
+            VOTES["shop"] = {s["id"]: s for s in scripts["scripts"] if s.get("shopId")}
+        votes = website("GET", "api/votes", timeout=8)
+        if "points" in votes:
+            VOTES["votes"] = {k: votes.get(k) for k in ("points", "nextVoteInMs", "unlocks")}
+    except Exception:  # noqa: BLE001 - offline: keep what we knew
+        pass
+    finally:
+        VOTES["at"], VOTES["busy"] = time.time(), False
+
+
+def vote_state(now=False):
+    if not zazuosu_token():
+        return VOTES
+    if now:
+        refresh_votes()
+    elif time.time() - VOTES["at"] > 30 and not VOTES["busy"]:
+        VOTES["busy"] = True
+        threading.Thread(target=refresh_votes, daemon=True).start()
+    return VOTES
+
+
+def locked_reason(script):
+    """Why `script` ('botscape/Lumby Cow Killer.py') can't run here: a vote-shop script not unlocked yet."""
+    source, _, name = script.rpartition("/")
+    item = VOTES["shop"].get(Path(name).stem) if source == "botscape" else None
+    if item and item.get("locked"):
+        return f"{item.get('name') or Path(name).stem} is locked: unlock it for {item.get('cost')} vote points first."
+    return None
+
+
+def buy_vote(body):
+    """Unlock a vote-shop script with vote points (the website does it and keeps the points)."""
+    answer = website("POST", "api/votes/buy", {"id": body.get("id")})
+    if answer.get("error"):
+        return answer["error"]
+    vote_state(now=True)
+    return None
 
 
 def script_path(script):
@@ -943,6 +999,10 @@ class Runner:
                     if p.poll() is None}
 
     def run(self, who, script):
+        locked = locked_reason(script)
+        if locked:
+            self.add(who, f"Not started: {locked}", "error")
+            return locked
         # Not when another PC already runs a script on this character, whichever way this start came (resumed
         # after a restart or an update too). Two PCs drove simba's group at once: each walk cut the other's trips
         # short and closed its bank ("Stopped", "couldn't open Draynor bank"), user-reported via the logs.
@@ -1466,6 +1526,7 @@ class World:
                 r = running.get(c["name"])
                 c["script"], c["started"] = (r["script"], r["started"]) if r else (None, None)
         data["scripts"] = list_scripts()
+        data["votes"] = VOTES["votes"]
         data["main"] = SETTINGS["main"]
         # Signed in = a character with its password here. Not signed in but a zazuosu session is
         # saved (the server was offline when you logged in): connect it now.
@@ -1720,6 +1781,10 @@ ACTIONS = {
     "settings": lambda b: (SETTINGS.update({k: v for k, v in b.items() if k == "auto_clone"}),
                            save_settings(SETTINGS), AUTH.update(token=None)) and None,
     "folder": lambda b: os.startfile(bot_dir()) and None,
+    "vote-buy": buy_vote,
+    # The vote link carries the character's name, so rsps.org's callback rewards the right one (as on the website).
+    "vote": lambda b: webbrowser.open("https://rsps.org/server/botscape/vote/?callback="
+                                      + urllib.parse.quote(SETTINGS["main"]) + "&username=" + urllib.parse.quote(SETTINGS["main"])) and None,
     "open-editor": open_in_editor,
     "script-option": set_script_option,
     "script-options": set_script_options,

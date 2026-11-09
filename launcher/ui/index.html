@@ -212,7 +212,26 @@
   .script { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
     display: flex; flex-direction: column; gap: 10px; transition: border-color .15s, transform .15s; }
   .script:hover { border-color: #3a4350; transform: translateY(-1px); }
-  .script.is-running { border-color: var(--green-dim); background: linear-gradient(180deg, #15291d, var(--card) 60%); }
+  .script.is-running { border-color: var(--green); background: linear-gradient(180deg, #17331f, var(--card) 70%);
+    box-shadow: 0 0 0 1px var(--green-dim) inset; }
+  /* User-requested (2026-11-09): running, locked and unlocked scripts clearly apart (the website uses these too). */
+  .script.is-locked { border-style: dashed; background: #191d23; }
+  .script.is-locked .title, .script.is-locked .desc, .script.is-locked .badge { opacity: .55; }
+  .script .tag { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+    font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .tag.run { background: #17331f; color: #7fdca2; border: 1px solid var(--green-dim); }
+  .tag.run::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .tag.lock { background: #2a2312; color: var(--gold); border: 1px solid var(--gold-dim); }
+  .tag.own { background: #16242f; color: var(--blue); border: 1px solid #284a63; }
+  .lock-ico { width: 12px; height: 12px; flex: none; }
+  .unlock-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; font-weight: 600;
+    font-size: 13px; border: 1px solid var(--gold-dim); background: #3a2f14; color: #f6dfa6; cursor: pointer; font-family: inherit; }
+  .unlock-btn:hover:not(:disabled) { background: #4a3c19; }
+  .unlock-btn:disabled { opacity: .5; cursor: default; }
+  .vote-strip { grid-column: 1/-1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px;
+    border: 1px solid var(--gold-dim); border-radius: var(--radius); background: #1f1b12; font-size: 13px; }
+  .vote-strip .pts { font-size: 18px; font-weight: 700; color: var(--gold); }
+  .vote-strip .hint { color: var(--muted); font-size: 12px; }
   .script .head { display: flex; align-items: center; gap: 10px; }
   .script .head img { width: 30px; height: 30px; image-rendering: pixelated; }
   .badge { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: #232a33; flex: none; }
@@ -1020,23 +1039,34 @@ function renderScripts() {
     && (!category || categoryOf(s) === category));
   const card = s => {
     const running = sel && sel.script === s.name;
+    const pts = data.votes ? data.votes.points : 0;
+    const tag = running ? `<span class="tag run">Running</span>`
+      : s.locked ? `<span class="tag lock"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Locked</span>`
+      : s.shop ? `<span class="tag own">Unlocked</span>` : "";
     const iconSkill = s.icon && SKILLS.includes(s.icon) ? s.icon : s.skill;
     const icon = s.icon === "botscape" ? `<img src="/brand/logo-64.png" alt="Bot Scape original" title="A Bot Scape original script" style="width:26px;height:26px;image-rendering:auto">`
       : iconSkill && SKILLS.includes(iconSkill) ? `<img src="${skillIcon(iconSkill)}" alt="" onerror="this.src='/scripts-24.png'">`
       : `<img src="/scripts-24.png" alt="">`;
-    return `<div class="script ${running ? "is-running" : ""}" data-script="${esc(s.id)}">
-      <div class="head"><div class="badge">${icon}</div><div class="title">${esc(s.name)}</div></div>
+    return `<div class="script ${running ? "is-running" : ""} ${s.locked ? "is-locked" : ""}" data-script="${esc(s.id)}">
+      <div class="head"><div class="badge">${icon}</div><div class="title">${esc(s.name)}</div>${tag}</div>
       <div class="desc">${esc(s.description || "No description.")}</div>
       ${(s.options || []).length ? `<div class="opts-hint">⚙ ${s.options.length} options: asked when you press Run</div>` : ""}
       <div class="row">
-        ${running ? `<button class="stop-btn" data-stop="${esc(selected)}"><img src="/stop-16.png" alt="">Stop</button>`
+        ${s.locked ? `<button class="unlock-btn" data-unlock="${esc(s.shopId)}" ${pts < s.cost ? "disabled" : ""}
+            title="${pts < s.cost ? "Vote for Bot Scape to earn points (1 point per vote)" : "Unlock it with your vote points"}"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Unlock · ${s.cost} pts</button>`
+        : running ? `<button class="stop-btn" data-stop="${esc(selected)}"><img src="/stop-16.png" alt="">Stop</button>`
                   : `<button class="run-btn" data-run="${esc(s.id)}"><img src="/play-16.png" alt="">Run on ${esc(selected || "")}</button>`}
-        <button class="btn small" data-team="${esc(s.id)}" title="Run on every unlocked character">Run on team</button>
+        ${s.locked ? "" : `<button class="btn small" data-team="${esc(s.id)}" title="Run on every unlocked character">Run on team</button>`}
       </div></div>`;
   };
   const packaged = scripts.filter(s => s.source === "botscape"), own = scripts.filter(s => s.source !== "botscape");
   const ownTotal = (data.scripts || []).filter(s => s.source !== "botscape").length;
-  let html = `<div class="section-head"><h3>Bot Scape scripts</h3><span class="count">${packaged.length}</span>
+  const v = data.votes;
+  let html = v ? `<div class="vote-strip"><span>Vote points</span><span class="pts">${v.points}</span>
+    <button class="unlock-btn" id="voteNow">Vote for Bot Scape</button>
+    <span class="hint">1 point per vote · ${v.nextVoteInMs > 0 ? `you can vote again in ${Math.ceil(v.nextVoteInMs / 3600000)} h`
+      : "you can vote now"} · locked scripts unlock with points</span></div>` : "";
+  html += `<div class="section-head"><h3>Bot Scape scripts</h3><span class="count">${packaged.length}</span>
     <span class="sub">Included with the game and kept up to date.</span></div>`;
   html += packaged.length ? packaged.map(card).join("") : `<div class="section-empty">${q ? "No Bot Scape scripts match." : "No scripts installed."}</div>`;
   html += `<div class="section-head"><h3>My scripts</h3><span class="count">${own.length}</span>
@@ -1046,6 +1076,12 @@ function renderScripts() {
     : "No scripts of your own yet. Put a .py file in your scripts folder (start from <b>MyFirstScript.py</b>) and it shows up here."}</div>`;
   $("scripts").innerHTML = html;
   $("ownFolder").onclick = () => post("folder", {});
+  if ($("voteNow")) $("voteNow").onclick = () => post("vote", {});
+  $("scripts").querySelectorAll("[data-unlock]").forEach(el => el.onclick = async () => {
+    el.disabled = true;
+    const r = await post("vote-buy", { id: el.dataset.unlock });
+    if (!r.ok) { alert(r.error || "Couldn't unlock it."); el.disabled = false; }
+  });
   $("scripts").querySelectorAll("[data-run]").forEach(el => el.onclick = () =>
     withOptions(el.dataset.run, () => runScript(selected, el.dataset.run)));
   $("scripts").querySelectorAll("[data-stop]").forEach(el => el.onclick = () => post("stop", { character: el.dataset.stop }));
