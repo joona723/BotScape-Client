@@ -1318,7 +1318,8 @@ function itemImg(name, count = 1, id) {
 
 // User-requested: the OSRS look for the bank, backpack and worn items, with a switch back (kept per browser).
 function osrsLook() { try { return localStorage.getItem("ui.osrsLook") !== "0"; } catch (e) { return true; } }
-function lookToggle() { return `<button class="look-toggle" onclick="toggleLook(event)" title="Switch between the OSRS look and the plain one">OSRS: ${osrsLook() ? "on" : "off"}</button>`; }
+// User-requested: the look switch lives in the profile menu now, not on the bank and worn-items panels.
+function lookToggle() { return ""; }
 function toggleLook(e) {
   if (e) e.stopPropagation();
   const on = !osrsLook();
@@ -1998,6 +1999,7 @@ document.addEventListener("click", e => {
     ...(data && data.version ? [{ label: `Check for updates`, kbd: `v${data.version}`, run: checkForUpdates }] : []),
     // User-requested: change the profile picture (a zazuosu sign-in only: it's the zazuosu account's picture).
     ...(data && data.embedded ? [{ label: p.avatar ? "Change profile picture" : "Add a profile picture", run: changeAvatar }] : []),
+    { label: "OSRS look (bank, backpack, gear)", kbd: osrsLook() ? "On" : "Off", run: () => toggleLook() },
     { label: "Log out", run: () => post("logout") },
   ], r.right - 200, r.bottom + 6);
 });
