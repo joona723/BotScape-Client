@@ -1719,6 +1719,7 @@ function renderHiscores() {
   const opt = a => `<option value="#${esc(a)}" ${hsSkill === "#" + a ? "selected" : ""}>${esc(a)}</option>`;
   const isAct = (hsSkill || "").startsWith("#");
   setHtml($("hsActivities"), `<button class="${hsSkill === "@groups" ? "on" : ""}" data-s="@groups" title="Top groups"><img src="/gim-24.png" onerror="this.src='/family-32.png'" alt=""></button>`
+    + `<button class="${hsSkill === "@wealth" ? "on" : ""}" data-s="@wealth" title="Wealthiest groups"><img src="${wikiFile("Coins_10000")}" alt=""></button>`
     + `<button class="${hsSkill === "@log" ? "on" : ""}" data-s="@log" title="Collection Log"><img src="${wikiFile("Collection_log")}" alt=""></button>`
     + `<select id="hsActivity" class="${isAct ? "on" : ""}"><option value="">Boss kills &amp; clue scrolls…</option>`
     + (clues.length ? `<optgroup label="Clue scrolls">${clues.map(opt).join("")}</optgroup>` : "")
@@ -1746,6 +1747,15 @@ function renderHiscores() {
     $("hiscores").innerHTML = hiscoreGroups(hsData, me);
     document.querySelectorAll("#hiscores [data-group]").forEach(r => r.onclick = () => { hsGroup = r.dataset.group; renderHiscores(); });
     const back = $("hsBack"); if (back) back.onclick = () => { hsGroup = null; renderHiscores(); };
+  } else if (hsSkill === "@wealth") {
+    // User-requested (like the web page): the wealthiest groups (everything they own at GE guide prices, the group bank too).
+    const rows = hsData.wealth || [];
+    const mine = ((hsData.overall || []).find(r => r.name.toLowerCase() === me)?.group || me).toLowerCase();
+    $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Group</th><th class="num">Members</th><th class="num">Wealth</th></tr>`
+      + rows.map((g, i) => `<tr class="${g.key === mine ? "me" : ""}"><td class="rank">${i + 1}</td><td>${esc(g.name)}</td>
+        <td class="num">${g.members}</td><td class="num" title="${g.value.toLocaleString()} gp">${gpShort(g.value)}</td></tr>`).join("")
+      + `</table>` + (rows.length ? `<div class="hint" style="margin-top:8px">Everything the group owns (backpacks, gear and banks) at Grand Exchange guide prices.</div>`
+        : `<div class="empty"><h3>${hsData.wealth ? "No wealth yet" : "The server doesn't rank wealth yet"}</h3></div>`);
   } else if (hsSkill === "@log") {
     $("hiscores").innerHTML = counted(hsData.collection || [], "Collection Log", "No one has logged an item yet");
   } else if (isAct) {
@@ -1760,6 +1770,10 @@ function renderHiscores() {
   }
 }
 
+// Coins the short way (12.3M), as on the web page.
+function gpShort(n) {
+  return n >= 1e9 ? (n / 1e9).toFixed(2) + "B gp" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M gp" : n >= 1e4 ? Math.round(n / 1e3) + "K gp" : n.toLocaleString() + " gp";
+}
 // User-requested: the top groups (every member's total level and XP added up); a group's row opens its players.
 function hiscoreGroups(hs, me) {
   const groups = new Map();
