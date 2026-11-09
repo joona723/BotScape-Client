@@ -160,6 +160,22 @@ def website(method, path, body=None, timeout=10):
             return {"error": f"The website said {e.code}."}
 
 
+UPDATING = {"at": 0.0, "value": False}
+
+
+def server_updating():
+    """While the game server doesn't answer: is it updating, and how far (the website reads the server PC's
+    update log: {elapsed, expected, left, phase}), asked at most every 15 s. User-requested: the hub shows the
+    same server status as the web page."""
+    if time.time() - UPDATING["at"] > 15:
+        UPDATING["at"] = time.time()
+        try:
+            UPDATING["value"] = (http("GET", "https://zazuosu.com/osrs/api/status", timeout=5, auth=False) or {}).get("updating") or False
+        except Exception:  # noqa: BLE001 - the website is down too: plain offline
+            UPDATING["value"] = False
+    return UPDATING["value"]
+
+
 def news_admin():
     """User-requested: news admins write and edit the News from the hub too (asked every 5 minutes)."""
     if time.time() - NEWS_ADMIN["at"] > 300 and zazuosu_token():
@@ -1299,8 +1315,10 @@ class World:
             # (about 10 s without an answer) counts as offline.
             self.misses = getattr(self, "misses", 0) + 1
             if self.misses >= 2:
+                updating = server_updating()
                 with self.lock:
-                    self.data = {"online": False, "embedded": EMBEDDED, "zazuosu": {k: ZAZUOSU[k] for k in ("status", "error")}}
+                    self.data = {"online": False, "updating": updating, "embedded": EMBEDDED,
+                                 "zazuosu": {k: ZAZUOSU[k] for k in ("status", "error")}}
             return
         self.misses = 0
         ms = int((time.time() - start) * 1000)

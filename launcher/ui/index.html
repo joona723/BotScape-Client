@@ -60,6 +60,8 @@
   .pill.on .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
   .pill.off { color: #f0938d; border-color: #5c2a27; }
   .pill.off .dot { background: var(--red); }
+  .pill.updating { color: #f0c46a; border-color: #5c4a20; }
+  .pill.updating .dot { background: var(--gold); }
   .spacer { flex: 1; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px;
     background: var(--card); border: 1px solid var(--border); transition: background .15s, border-color .15s; }
@@ -82,8 +84,9 @@
   .aside-scroll { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
   .rename-group { display: inline-grid; width: 20px; height: 20px; font-size: 12px; vertical-align: middle; opacity: .7; }
   .rename-group:hover { opacity: 1; }
-  /* User-requested: a clear "Server offline" overlay with the hub blurred behind it. */
-  .offline-overlay { position: fixed; inset: 0; z-index: 900; display: grid; place-items: center;
+  /* User-requested (like the web page): no cover over the whole hub, only over the live map while the server is down. */
+  #mapDown .offline-card.updating h2 { color: var(--gold); }
+  .offline-overlay { position: absolute; inset: 0; z-index: 900; display: grid; place-items: center;
     background: rgba(10, 12, 16, .45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .offline-overlay[hidden] { display: none; }
   .offline-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 28px 36px;
@@ -614,7 +617,7 @@
         <div class="cats" id="cats" style="margin:-4px 0 16px"></div>
         <div class="grid" id="scripts"></div>
       </section>
-      <section class="view flush" id="view-map"><iframe id="mapFrame" title="Live map"></iframe></section>
+      <section class="view flush" id="view-map" style="position:relative"><div id="mapDown" class="offline-overlay" hidden><div class="offline-card"><div class="offline-spinner"></div><h2 id="mapDownTitle">Server offline</h2><p id="mapDownText"></p></div></div><iframe id="mapFrame" title="Live map"></iframe></section>
       <section class="view" id="view-output">
         <div class="toolbar" id="filters"></div>
         <div class="console" id="console"></div>
@@ -878,7 +881,7 @@ function renderTeam() {
         <button class="icon-btn" data-stop="${esc(c.name)}" title="Stop it (where it runs)" style="width:24px;height:24px"><img src="/stop-16.png" alt="" style="width:12px;height:12px"></button></div>` : ""}
     </div>`;
   }).join("") || (data.online === false
-    ? `<div class="empty"><h3>Server is offline</h3><div class="hint">Your characters show up again as soon as it's back.</div></div>`
+    ? `<div class="empty"><h3>${data.updating ? "Server updating" : "Server is offline"}</h3><div class="hint">Your group and characters are safe. They show up again as soon as it's back.</div></div>`
     : `<div class="empty"><h3>No characters yet</h3></div>`);
   team.querySelectorAll(".char").forEach(el => el.onclick = e => {
     if (e.target.closest("[data-play],[data-stop],[data-more]")) return;
@@ -902,7 +905,7 @@ function renderTeam() {
 
   if (data.online === false || data.familyReady === false) {
     // Offline (or still starting) there's no group data: no made-up zeros ("Your group is full").
-    $("cloneCard").innerHTML = `<div class="hint">${data.online === false ? "Server is offline" : "Server is starting"}: group levels and members return when it's back.</div>`;
+    $("cloneCard").innerHTML = `<div class="hint">${data.online === false ? (data.updating ? "Server updating" : "Server is offline") : "Server is starting"}: group levels and members return when it's back.</div>`;
     return;
   }
   const f = data.family || {};
@@ -1785,6 +1788,18 @@ function hiscoreGroups(hs, me) {
 }
 
 // --- header, settings, setup -------------------------------------------------------------------
+// Same words as the web page's status pill (user-requested parity): online, updating (step, time left), offline.
+function serverStatus(d) {
+  if (!d || d.online) return { cls: "on", text: `Server online${d && d.ms != null ? ` · ${d.ms} ms` : ""}`, tip: "" };
+  const up = d.updating;
+  if (up) {
+    const mins = Math.max(1, Math.ceil((up.left || 0) / 60));
+    const pct = Math.min(97, Math.round(100 * (up.elapsed || 0) / Math.max(1, up.expected || 300)));
+    return { cls: "updating", text: `Server updating · ${up.phase || "Updating"} · ${up.left > 0 ? `~${mins} min left` : "almost done"}`,
+      tip: `A new version of Bot Scape is being installed (${pct}%). Scripts and clients carry on when it's back.` };
+  }
+  return { cls: "off", text: "Server offline · reconnecting…", tip: "The Bot Scape server isn't answering right now. The hub reconnects by itself." };
+}
 function renderHeader() {
   const up = $("updateBtn");
   if (data && data.update) {
@@ -1793,8 +1808,9 @@ function renderHeader() {
   } else up.style.display = "none";
   $("mainName").textContent = data.main ? "· " + data.main : "";
   const pill = $("serverPill");
-  pill.className = "pill " + (data.online ? "on" : "off");
-  $("serverText").textContent = data.online ? `Server online · ${data.ms} ms` : "Server offline";
+  const v = serverStatus(data);
+  pill.className = "pill " + v.cls;
+  $("serverText").textContent = v.text; pill.title = v.tip;
   $("clientBtn").innerHTML = `<img src="/play-16.png" alt="" style="filter:brightness(0)">Play ${esc(selected || data.main || "")}`;
   // Embedded in the Zazuosu launcher: it shows the brand and owns sign-in (zazuosu account).
   document.body.classList.toggle("embedded", !!data.embedded);
@@ -1821,9 +1837,16 @@ async function refresh() {
     return;
   }
   renderHeader();
-  // Offline for two refreshes in a row (not one dropped request): the overlay, until it's back.
+  // Offline for two refreshes in a row (not one dropped request): the notice over the live map, until it's back.
   window.offlineCount = data.online === false ? (window.offlineCount || 0) + 1 : 0;
-  $("offlineOverlay").hidden = window.offlineCount < 2;
+  $("mapDown").hidden = window.offlineCount < 2;
+  if (!$("mapDown").hidden) {
+    const v = serverStatus(data), up = v.cls === "updating";
+    $("mapDown").querySelector(".offline-card").classList.toggle("updating", up);
+    $("mapDownTitle").textContent = up ? "Server updating" : "Server offline";
+    $("mapDownText").textContent = (up ? v.text.replace(/^Server updating · /, "") + ". " : "") +
+      "The live map shows your characters again as soon as the server is back.";
+  }
   if (data.characters) renderTeam();
   renderScripts();
   renderSkills();
@@ -1965,13 +1988,5 @@ document.addEventListener("click", e => {
   ], r.right - 200, r.bottom + 6);
 });
 </script>
-<div id="offlineOverlay" class="offline-overlay" hidden>
-  <div class="offline-card">
-    <div class="offline-spinner"></div>
-    <h2>Server offline</h2>
-    <p id="offlineText">The Bot Scape server isn't answering. It's probably restarting for an update.</p>
-    <p class="hint">Reconnecting by itself. Scripts and clients carry on when it's back.</p>
-  </div>
-</div>
 </body>
 </html>
