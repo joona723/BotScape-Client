@@ -15,7 +15,8 @@
   .forum-list { display: grid; gap: 8px; }
   .forum-row { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
-  .forum-row:hover { border-color: #4a5462; }
+  .forum-row:hover { border-color: #4a5462; background: #222932; }
+  .forum-row:active { transform: scale(.995); border-color: var(--gold-dim, #8a6420); }
   .forum-row.pinned { border-color: var(--gold-dim, #8a6420); background: linear-gradient(90deg, rgba(224,168,58,.08), transparent 60%); }
   .forum-row .main { flex: 1; min-width: 0; }
   .forum-row .t { font-weight: 600; font-size: 14.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -44,7 +45,9 @@
   .forum-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); margin-bottom: 12px; }
   .forum-form input, .forum-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
     border: 1px solid var(--border, #3a4250); background: #0f1317; color: var(--text); font: inherit; }
-  .forum-form textarea { min-height: 110px; resize: vertical; }
+  .forum-form textarea { min-height: 160px; resize: vertical; line-height: 1.5; }
+  /* User-requested: writing a thread uses the whole view, not a small box. */
+  .forum-form textarea#forumBody { min-height: max(320px, calc(100vh - 330px)); }
   .forum-form .row { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
   .forum-form .row .hint { margin-right: auto; color: var(--muted); font-size: 12px; }
   .news-tools { margin-left: auto; display: flex; gap: 6px; }
@@ -804,7 +807,7 @@ async function saveNews() {
 // --- forum (user-requested 2026-11-09) -----------------------------------------------------------------------------
 // Threads and replies are plain text, always shown through esc() (never as HTML), so nobody can slip in a <script>;
 // the server takes HTML tags out too. Pinned threads first, then the most recently active.
-let forum = { threads: [], me: null, open: null, thread: null, writing: false };
+let forum = { threads: [], me: null, open: null, thread: null, writing: false, cache: {}, editing: null };
 function forumAv(user, name) {
   const key = String(user || name || "?").toLowerCase();
   return `<span class="forum-av" style="background:${colorFor(key)}">${esc(String(name || key)[0].toUpperCase())}` +
@@ -826,7 +829,8 @@ async function loadForum() {
     if (forum.open !== null) {
       const r = await forumGet("?thread=" + forum.open);
       if (r.error && !r.thread) { forum.open = null; return loadForum(); }
-      forum.thread = r.thread; forum.me = r.me;
+      if (forum.open !== r.thread.id) return;   // another thread was opened meanwhile
+      forum.thread = forum.cache[r.thread.id] = r.thread; forum.me = r.me;
     } else {
       const r = await forumGet("");
       forum.threads = r.threads || []; forum.me = r.me;
@@ -844,7 +848,8 @@ function renderForum() {
       <div class="row"><span class="hint">Plain text. Be nice!</span>
         <button class="btn small" onclick="forum.writing=false;renderForum()">Cancel</button>
         <button class="btn gold small" onclick="forumNewThread()">Post thread</button></div></div>` : "";
-  const rows = forum.threads.map(t => `<div class="forum-row ${t.pinned ? "pinned" : ""}" onclick="forumOpen(${Number(t.id)})">
+  const rows = forum.threads.map(t => `<div class="forum-row ${t.pinned ? "pinned" : ""}" onclick="forumOpen(${Number(t.id)})"
+      onmouseenter="forumPrefetch(${Number(t.id)})">
       ${forumAv(t.user, t.author)}
       <div class="main"><div class="t">${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</div>
         <div class="m">${forumWho(t)} · ${forumWhen(t.at)}${t.replies ? ` · last reply by <b>${esc(t.lastBy)}</b> ${forumWhen(t.last)}` : ""}</div></div>
@@ -856,15 +861,17 @@ function renderForum() {
 }
 function renderForumThread() {
   const t = forum.thread, me = forum.me, admin = !!(me && me.admin);
-  const tools = (p, reply) => (admin || forumMine(p)) ? `<button onclick="forumDelete(${Number(t.id)}, ${reply ? Number(p.id) : 0})">Delete</button>` : "";
+  // User-requested: edit your own threads and replies (admins any of them).
+  const tools = (p, reply) => (admin || forumMine(p)) ? `<button onclick="forumEditStart(${reply ? Number(p.id) : 0})">Edit</button>` +
+    `<button onclick="forumDelete(${Number(t.id)}, ${reply ? Number(p.id) : 0})">Delete</button>` : "";
   const op = `<article class="forum-post op">${forumAv(t.user, t.author)}<div class="main">
       <h3>${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</h3>
-      <div class="m">${forumWho(t)} · ${forumWhen(t.at)}
+      <div class="m">${forumWho(t)} · ${forumWhen(t.at)}${t.edited ? " · edited" : ""}
         <span class="forum-tools">${admin ? `<button onclick="forumPin(${Number(t.id)}, ${t.pinned ? "false" : "true"})">${t.pinned ? "Unpin" : "Pin to top"}</button>` : ""}${tools(t, false)}</span></div>
-      <div class="body">${forumParas(t.body)}</div></div></article>`;
+      <div class="body">${t.body == null ? `<p class="hint">Loading…</p>` : forum.editing === 0 ? forumEditForm(t, true) : forumParas(t.body)}</div></div></article>`;
   const replies = (t.replies || []).map(r => `<article class="forum-post">${forumAv(r.user, r.author)}<div class="main">
-      <div class="m">${forumWho(r)} · ${forumWhen(r.at)}<span class="forum-tools">${tools(r, true)}</span></div>
-      <div class="body">${forumParas(r.body)}</div></div></article>`).join("");
+      <div class="m">${forumWho(r)} · ${forumWhen(r.at)}${r.edited ? " · edited" : ""}<span class="forum-tools">${tools(r, true)}</span></div>
+      <div class="body">${forum.editing === r.id ? forumEditForm(r, false) : forumParas(r.body)}</div></div></article>`).join("");
   const box = me ? `<div class="forum-form" style="margin:4px 0 0">
       <textarea id="forumReply" maxlength="2000" placeholder="Write a reply…"></textarea>
       <div class="row"><span class="hint">Plain text.</span><button class="btn gold small" onclick="forumReply(${Number(t.id)})">Reply</button></div></div>`
@@ -873,10 +880,36 @@ function renderForumThread() {
       <span class="hint">${(t.replies || []).length} replies</span></div>
     <div class="forum-thread">${op}${replies}${box}</div>`;
 }
-function forumOpen(id) { forum.open = id; forum.thread = null; loadForum(); }
+// User-reported: opening a thread showed nothing until it had loaded. It opens at once now (what the list knows, or
+// the copy from the last visit or a hover), and the full thread fills in when it arrives.
+function forumOpen(id) {
+  forum.open = id; forum.editing = null;
+  const known = forum.threads.find(t => t.id === id);
+  forum.thread = forum.cache[id] || (known ? { ...known, body: null, replies: [] } : null);
+  if (forum.thread) renderForum();
+  loadForum();
+}
+function forumEditForm(p, isThread) {
+  return `<div class="forum-form" style="margin:8px 0 0">${isThread ? `<input id="forumEditTitle" maxlength="100" value="${esc(p.title)}">` : ""}
+    <textarea id="forumEditBody" maxlength="${isThread ? 4000 : 2000}">${esc(p.body)}</textarea>
+    <div class="row"><span class="hint">Plain text.</span><button class="btn small" onclick="forum.editing=null;renderForum()">Cancel</button>
+      <button class="btn gold small" onclick="forumEditSave(${Number(forum.thread.id)}, ${isThread ? 0 : Number(p.id)})">Save</button></div></div>`;
+}
+function forumEditStart(reply) { forum.editing = reply; renderForum(); }
+function forumEditSave(thread, reply) {
+  const body = { action: "edit", thread, body: $("forumEditBody").value };
+  if (reply) body.reply = reply; else body.title = $("forumEditTitle").value;
+  forumDo(body, () => { forum.editing = null; });
+}
+function forumPrefetch(id) {
+  if (forum.cache[id] || forum.prefetching === id) return;
+  forum.prefetching = id;
+  forumGet("?thread=" + id).then(r => { if (r && r.thread) forum.cache[id] = r.thread; }).catch(() => {});
+}
 async function forumDo(body, then) {
   const r = await forumPost(body);
   if (r && r.error) return false;
+  forum.cache = {};
   if (then) then(r);
   loadForum();
   return true;
@@ -1114,7 +1147,7 @@ function renderTeam() {
     <div class="bar" style="margin:10px 0 6px"><div style="width:${pct}%;background:var(--gold)"></div></div>
     <div class="hint">${nextText}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-      ${members < unlocked ? `<button class="btn gold small" id="newClone"><img src="/clone-16.png" alt="" style="filter:brightness(0)">+ New character</button>` : ""}
+      ${members < unlocked ? `<button class="btn gold small" id="newClone"><img src="/clone-16.png" alt="" style="filter:brightness(0)">+ New group member</button>` : ""}
       <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone" title="Adds members when your total level allows, and runs AIO on everyone in the group (not on a character you play in a client or stopped by hand)"><span class="switch"></span>Auto</div>
     </div>`;
   if ($("newClone")) $("newClone").onclick = () => openMemberDialog();

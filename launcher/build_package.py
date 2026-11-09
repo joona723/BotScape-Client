@@ -50,7 +50,7 @@ CONTENT = [
     ("scripts/botscape/Lumby Chicken Killer.py", "scripts/botscape/Lumby Chicken Killer.py"),
     # The vote shop's scripts (user-requested 2026-11-09: in the hub too): locked until bought with vote points.
     *[(f"scripts/botscape/{n}.py", f"scripts/botscape/{n}.py") for n in
-      ("Lumby Cow Killer", "Lumby Thiever", "Lumby Fisher", "Cowhide Crafter", "Lumby Cooker")],
+      ("Lumby Cow Killer", "Lumby Thiever", "Lumby Fisher", "Lumby Cowhide Crafter", "Lumby Cooker")],
     ("scripts/botscape/lib/__init__.py", "scripts/botscape/lib/__init__.py"),
     ("scripts/botscape/lib/lumby.py", "scripts/botscape/lib/lumby.py"),
     ("scripts/templates", "scripts/templates"),

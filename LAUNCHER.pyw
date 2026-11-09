@@ -816,10 +816,24 @@ def script_sync_loop():
         time.sleep(30)
 
 
+# Bot Scape scripts renamed or retired: the hub's updater adds files but never deletes them, so they're removed here
+# (an old "Cowhide Crafter.py" would show as a second, unlocked copy of the vote shop's Lumby Cowhide Crafter).
+RETIRED_SCRIPTS = ("Cowhide Crafter.py",)
+
+
+def remove_retired_scripts():
+    for name in RETIRED_SCRIPTS:
+        try:
+            (PACKAGED_SCRIPTS / name).unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def list_scripts():
     """Bot Scape's own scripts first, then the player's (bots/<main>/*.py). Vote-shop scripts carry whether
     this account has unlocked them (locked, cost, shopId), as on the website."""
-    packaged = script_entries(PACKAGED_SCRIPTS, "botscape")
+    remove_retired_scripts()
+    packaged = [e for e in script_entries(PACKAGED_SCRIPTS, "botscape") if e["file"] not in RETIRED_SCRIPTS]
     shop = vote_state()["shop"]
     for entry in packaged:
         item = shop.get(entry["name"])
