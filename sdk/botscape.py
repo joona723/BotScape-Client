@@ -152,6 +152,15 @@ def request(method, path, body=None, timeout=15, _retry=True, _attempt=1):
         if method == "GET" and _attempt < 3:
             return request(method, path, body, timeout, _retry, _attempt + 1)
         raise
+    if status == 429 and _attempt < 30:
+        # The server's flood protection (too many requests from this connection): wait as long as it says, then
+        # carry on, instead of stopping the script (user-requested 2026-11-10: no false bans for players).
+        try:
+            wait = int(re.search(r"(\d+) s", json.loads(raw or b"{}").get("error", "")).group(1))
+        except (AttributeError, ValueError, TypeError):
+            wait = 10
+        time.sleep(min(60, max(1, wait)))
+        return request(method, path, body, timeout, _retry, _attempt + 1)
     if status >= 400:
         if status == 401 and _retry and CREDENTIALS and path != "/auth":
             # The server restarted (an update) and forgot our token: sign in again and carry on.
