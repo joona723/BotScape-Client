@@ -451,7 +451,7 @@ class Bot:
                 # Places the planner can't leave by itself: the rune essence mine and some upstairs rooms
                 # (server script-problems log 2026-11-10: "No route to 3013, 3355" from Falador castle's floor 2
                 # and from the essence mine, again and again, in Construction, Farming, Mining...).
-                if not _unstuck and (self._unstick() or (str(message).startswith("No route") and self._home_teleport())):
+                if not _unstuck and (self._unstick(level) or (str(message).startswith("No route") and self._home_teleport())):
                     _unstuck = True
                     previous = trip.get("id")
                     self.act(action)
@@ -461,7 +461,7 @@ class Bot:
         self.act({"type": "stop_travel"})
         return False
 
-    def _unstick(self):
+    def _unstick(self, target_level=None):
         """Out of the rune essence mine (its portals) or down to the ground floor (the nearest stairs or ladder
         down). True if the bot moved somewhere the route planner can start from."""
         def first_op(entity, names):
@@ -490,7 +490,9 @@ class Bot:
         downs = ("Climb-down", "Climb down", "Go-down", "Walk-down")
         for _ in range(4):
             level = self.position[2]
-            if level == 0:
+            # Only down towards where it's going (quest drill 2026-11-10: talking to Sanfew upstairs, a "No route" to
+            # him took the bot downstairs, away from him).
+            if level == 0 or (target_level is not None and level <= target_level):
                 break
             x, z, _ = self.position
             stairs = [l for l in self.find_locs(re.compile(r"(?i)staircase|stairs|ladder")) if first_op(l, downs)]

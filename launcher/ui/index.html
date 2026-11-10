@@ -1074,8 +1074,12 @@ function renderTeam() {
   $("groupName").innerHTML = data.main ? `${gname ? `<b>${esc(gname)}</b>` : `${esc(capName(data.main))}'s group`} · one shared bank
     <button class="icon-btn rename-group" id="renameGroup" title="Name your group (shown on the highscores)">✎</button>` : "";
   if ($("renameGroup")) $("renameGroup").onclick = () => {
-    const name = prompt("Group name (shown on the highscores; empty for none):", gname || "");
-    if (name !== null) post("group-name", { name });
+    // The server checks it too (user-requested 2026-11-10): 3-24 letters, numbers or spaces, not another group's or player's name.
+    const name = prompt("Group name, shown on the highscores (3-24 letters, numbers or spaces; not another group's name):", gname || "");
+    if (name === null) return;
+    const clean = name.trim().replace(/ +/g, " ");
+    if (!/^[A-Za-z0-9 ]{3,24}$/.test(clean) || !/[A-Za-z]/.test(clean)) return toast("Use 3-24 letters, numbers and spaces (at least one letter).");
+    post("group-name", { name: clean });
   };
   const cardOf = c => {
     const hpPct = c.maxHp ? Math.round(100 * c.hp / c.maxHp) : 0;
