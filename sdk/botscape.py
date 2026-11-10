@@ -32,6 +32,7 @@ import http.client
 import json
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -956,6 +957,77 @@ def script_options(options):
     return chosen
 
 
+def _process_alive(pid):
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    import ctypes
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    handle = kernel32.OpenProcess(0x1000, False, int(pid))   # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return ctypes.get_last_error() == 5                   # access denied: it exists
+    try:
+        code = ctypes.c_ulong()
+        return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259   # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def stop_stray_brain():
+    """Script-problems log 2026-11-10: AIO brains from the night before kept running next to the new ones, so each
+    character did two things at once (one thieved while the other chopped, quested and banked). AIO.py writes the
+    character's owner (bots/<main>/.aio_owner[.<clone>].json) and tags its scripts with AIO_BRAIN; a script an
+    older brain started (no tag, a different live owner) stops that brain, and itself with it."""
+    args = sys.argv[1:]
+    if ("--main" in args or (args and not args[0].startswith("--"))
+            or Path(sys.argv[0]).name == "AIO.py" or not os.environ.get("RS_BOT")):
+        return   # started by the hub or by hand
+    main_name = (os.environ.get("BOT_MAIN") or "simba").lower()
+    character = os.environ["RS_BOT"].lower()
+    owner_file = (Path(__file__).resolve().parents[1] / "bots" / main_name
+                  / (".aio_owner.json" if character == main_name else f".aio_owner.{character}.json"))
+    if os.environ.get("AIO_BRAIN"):
+        _watch_owner(owner_file, os.environ["AIO_BRAIN"], character)
+        return   # started by the new AIO
+    try:
+        owner = int(json.loads(owner_file.read_text()).get("pid") or 0)
+    except (OSError, ValueError, AttributeError, TypeError):
+        return
+    parent = os.getppid()
+    if not owner or owner == parent or not _process_alive(owner):
+        return
+    print(f"Stopped: an older AIO brain (process {parent}) started this while a newer one (process {owner}) runs "
+          f"{character}: stopping the older brain.", flush=True)
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(parent)], capture_output=True,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    raise SystemExit(3)
+
+
+def _watch_owner(owner_file, brain, character):
+    """Script-problems log 2026-11-10 16:57: a new brain took cyril over while its old brain's Runecrafting kept
+    running, so for 15 minutes one script ran to the Body altar while the other thieved with the same backpack. A
+    script its brain tagged (AIO_BRAIN) stops itself once another live brain owns the character."""
+    def watch():
+        while True:
+            time.sleep(20)
+            try:
+                owner = json.loads(owner_file.read_text())
+            except (OSError, ValueError):
+                continue
+            if not isinstance(owner, dict) or owner.get("id") in (None, brain):
+                continue
+            if not _process_alive(int(owner.get("pid") or 0)):
+                continue
+            print(f"Stopped: a newer AIO brain (process {owner.get('pid')}) runs {character} now.", flush=True)
+            os._exit(3)
+
+    threading.Thread(target=watch, name="aio-owner-watch", daemon=True).start()
+
+
 def run(main):
     """Run `main(bot)` for the character named on the command line.
 
@@ -963,6 +1035,7 @@ def run(main):
 
     The password comes from bots/<main>/bot.env (clones use their main's password).
     """
+    stop_stray_brain()
     args = sys.argv[1:]
     script_main = Path(sys.argv[0]).resolve().parent.name
     # AIO starts skill scripts with no character on the command line: it sets BOT_MAIN (the main) and RS_BOT

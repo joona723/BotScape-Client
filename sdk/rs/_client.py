@@ -99,6 +99,7 @@ def connect_sync(bot=None, port=None, host="127.0.0.1", *, check=True):
     if gap:
         print(f"Stopped: {gap} isn't on this server yet", flush=True)
         raise SystemExit(3)
+    gateway.stop_stray_brain()
     client = SyncClient(bot, port, host)
     if check:
         client._login()
