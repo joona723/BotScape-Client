@@ -425,6 +425,7 @@ class Bot:
         end = time.time() + timeout
         last = None
         _restarts = 0
+        _unstuck = False
         while time.time() < end:
             trip = self.state().get("travel") or {}
             # The new trip hasn't started yet (an earlier trip to the same place doesn't count).
@@ -447,9 +448,80 @@ class Bot:
                     previous = trip.get("id")
                     self.act(action)
                     continue
+                # Places the planner can't leave by itself: the rune essence mine and some upstairs rooms
+                # (server script-problems log 2026-11-10: "No route to 3013, 3355" from Falador castle's floor 2
+                # and from the essence mine, again and again, in Construction, Farming, Mining...).
+                if not _unstuck and (self._unstick() or (str(message).startswith("No route") and self._home_teleport())):
+                    _unstuck = True
+                    previous = trip.get("id")
+                    self.act(action)
+                    continue
                 return False
             self.wait_ticks(2)
         self.act({"type": "stop_travel"})
+        return False
+
+    def _unstick(self):
+        """Out of the rune essence mine (its portals) or down to the ground floor (the nearest stairs or ladder
+        down). True if the bot moved somewhere the route planner can start from."""
+        def first_op(entity, names):
+            ops = [o.lower() for o in (entity.get("ops") or []) if o]
+            return next((n for n in names if n.lower() in ops), None)
+
+        def in_mine():
+            x, z, _ = self.position
+            return 2880 <= x < 2944 and 4800 <= z < 4864
+
+        if in_mine():
+            self.log("Travel: taking the portal out of the essence mine")
+            for _ in range(4):
+                portals = self.find_locs("Portal") + self.find_npcs("Portal")
+                portal = next((p for p in portals if first_op(p, ("Use", "Enter", "Exit"))), None)
+                if portal is None:
+                    return False
+                act = self.interact_npc if "index" in portal else self.interact_loc
+                act(portal, first_op(portal, ("Use", "Enter", "Exit")))
+                for _ in range(10):
+                    self.wait_ticks(1)
+                    if not in_mine():
+                        return True
+            return False
+        moved = False
+        downs = ("Climb-down", "Climb down", "Go-down", "Walk-down")
+        for _ in range(4):
+            level = self.position[2]
+            if level == 0:
+                break
+            x, z, _ = self.position
+            stairs = [l for l in self.find_locs(re.compile(r"(?i)staircase|stairs|ladder")) if first_op(l, downs)]
+            if not stairs:
+                break
+            near = min(stairs, key=lambda l: abs(l["x"] - x) + abs(l["z"] - z))
+            self.log(f"Travel: climbing down the {str(near.get('name', 'stairs')).lower()} (floor {level})")
+            self.interact_loc(near, first_op(near, downs))
+            for _ in range(15):
+                self.wait_ticks(1)
+                if self.position[2] != level:
+                    moved = True
+                    break
+            else:
+                break
+        return moved
+
+    def _home_teleport(self):
+        """Home Teleport from whichever spellbook is open (free, 30-minute cooldown). True once it moved the bot:
+        the route planner can start from home when it can't from where the bot stands."""
+        before = self.position
+        self.log("Travel: no route from here, casting Home Teleport")
+        for book in ("standard", "lunar", "zaros", "arceuus"):
+            try:
+                self.act({"type": "spell", "spell": f"magic_spellbook:teleport_home_{book}"})
+            except GatewayError:
+                continue
+            for _ in range(25):
+                self.wait_ticks(1)
+                if self.position != before and not self.player.get("delayed"):
+                    return True
         return False
 
     def interact_loc(self, loc, option=None):
