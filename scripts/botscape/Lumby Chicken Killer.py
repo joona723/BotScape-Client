@@ -615,6 +615,12 @@ def make_flour(bot):
     bot.wait_until(lambda: not carried(bot, "Grain"), timeout=15)
     bot.interact_loc(bot.find_loc("Hopper controls"), "Operate")
     bot.wait_ticks(5)
+    # The bin fills an empty pot (AIO bots' problems log 2026-11-10: "The flour bin gave no flour." with no pot:
+    # the kitchen's pot hadn't respawned when the loop started).
+    if not carried(bot, "Pot"):
+        take_pot(bot)
+        if not carried(bot, "Pot"):
+            raise RuntimeError("No empty pot for the flour (the castle kitchen's pot didn't respawn).")
     go(bot, *MILL_BIN)
     bot.interact_loc(bot.find_loc("Flour bin"), "Empty")
     if not wait_for_item(bot, "Pot of flour", 15):

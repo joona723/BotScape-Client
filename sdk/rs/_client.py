@@ -569,12 +569,21 @@ class SyncClient:
             if not ent: break
             remaining = amount - total if amount >= 0 else -1
             if remaining == 0: break
-            quantity = "all" if remaining < 0 else 10 if remaining >= 10 else 5 if remaining >= 5 else 1
-            op = ({1: 2, 5: 3, 10: 4, "all": 7} if withdraw else {1: 3, 5: 4, 10: 5, "all": 8})[quantity]
             before = sum(i.count for i in source if i.id == ent.id)
-            r = self._send(type="button", component="bankmain:items" if withdraw else "bankside:items",
-                           op=op, sub=ent.slot, obj=ent.id)
-            if not r.success: return r
+            if remaining >= 20:
+                # Withdraw-X / Deposit-X with the amount typed in (user-reported 2026-11-11: 32,000 coins for a rune
+                # pickaxe came out as 600: clicks of 10, at most 60 of them).
+                r = self._send(type="button", component="bankmain:items" if withdraw else "bankside:items",
+                               op=6 if withdraw else 7, sub=ent.slot, obj=ent.id)
+                if not r.success: return r
+                r = self._send(type="count", value=int(min(remaining, 2_147_483_647)))
+                if not r.success: return r
+            else:
+                quantity = "all" if remaining < 0 else 10 if remaining >= 10 else 5 if remaining >= 5 else 1
+                op = ({1: 2, 5: 3, 10: 4, "all": 7} if withdraw else {1: 3, 5: 4, 10: 5, "all": 8})[quantity]
+                r = self._send(type="button", component="bankmain:items" if withdraw else "bankside:items",
+                               op=op, sub=ent.slot, obj=ent.id)
+                if not r.success: return r
             key = "bank" if withdraw else "inventory"
             r = self._wait(lambda s: sum(i["count"] for i in s[key] if i["id"] == ent.id) < before, 5)
             if not r.success:
