@@ -293,9 +293,9 @@ public class BotScapePlugin extends Plugin
 		hiscoreButton = NavigationButton.builder().tooltip("Bot Scape hiscores").icon(BotScapeUi.image("hiscores", 16))
 			.priority(3).panel(hiscores).build();
 		clientToolbar.addNavigation(hiscoreButton);
-		if (configManager.getConfiguration("botscape", "hiscoreDefaults") == null)
+		// RuneLite's own Hiscore plugin looks players up on Jagex's hiscores (user-reported 2026-11-11: the newly pulled
+		// client showed those): off on every start, not just the first, so it can't come back.
 		{
-			configManager.setConfiguration("botscape", "hiscoreDefaults", "true");
 			javax.swing.SwingUtilities.invokeLater(() ->
 			{
 				for (Plugin p : pluginManager.getPlugins())

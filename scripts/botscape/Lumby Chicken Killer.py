@@ -174,13 +174,17 @@ def pick_chicken(bot):
     def next_to_player(n):
         return any(abs(p["x"] - n["x"]) <= 1 and abs(p["z"] - n["z"]) <= 1 for p in others)
 
-    attacker = next((n for n in chickens if n["distance"] <= 1 and hurt(n)), None)
+    attacker = next((n for n in chickens if n.get("fightingMe") or (n["distance"] <= 1 and hurt(n))), None)
     if attacker:
         return attacker
     # User-requested: only chickens it can get to. Ones it couldn't reach lately (behind a fence or a
     # shut gate) are skipped for a while, and so are strays far from the coop. Closest first.
     now = time.time()
-    free = [n for n in chickens if not hurt(n) and not next_to_player(n)
+    # User-reported (2026-11-11: bots stood idle among free chickens): the server says which ones fight someone
+    # else; "next to another player" left none free in a crowded coop (the old rule stays for older servers).
+    def taken(n):
+        return n["fightingOther"] if "fightingOther" in n else hurt(n) or next_to_player(n)
+    free = [n for n in chickens if not taken(n)
             and UNREACHABLE.get(n["index"], 0) < now
             and abs(n["x"] - COOP[0]) <= COOP_RANGE and abs(n["z"] - COOP[1]) <= COOP_RANGE]
     return min(free, key=lambda n: n["distance"]) if free else None
