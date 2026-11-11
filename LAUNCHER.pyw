@@ -1738,7 +1738,14 @@ def run_here(who, script):
 def stop_everyone():
     """User-reported: STOP ALL left scripts running. It only stopped this hub's own; scripts a game
     client or another hub runs on the group's characters are asked to stop too (like each card's Stop)."""
-    RUNNER.held.update(RUNNER.procs)
+    # User-reported (2026-11-11: "I press stop and it just keeps running"): every member stays stopped, not only the
+    # ones running at that moment. Those waiting to come back after a server restart, or still starting, were left
+    # out, so the resume list and Auto mode started them again.
+    with WORLD.lock:
+        members = [c["name"] for c in WORLD.data.get("characters", [])]
+    with RUNNER.lock:
+        RUNNER.held.update(set(RUNNER.procs) | set(RUNNER.resume) | set(members))
+        RUNNER.resume.clear()
     RUNNER.stop_all()
     # The ones running elsewhere are asked in the background: the button answers right away.
     threading.Thread(target=stop_remote_members, daemon=True).start()
@@ -1791,6 +1798,8 @@ def member_names_known():
 def stop_character(who):
     """Stop its script here, or (user-requested) ask the hub or game client that runs it elsewhere."""
     RUNNER.held.add(who)
+    with RUNNER.lock:
+        RUNNER.resume.pop(who, None)   # not brought back after a server restart either
     if who in RUNNER.running():
         RUNNER.stop(who)
         return None
