@@ -7,7 +7,7 @@ an id that changes when the file does) and what BotScape.exe updates from:
 
     BotScape.exe              the Bot Scape launcher (update check, desktop shortcut, opens the hub)
     LAUNCHER.pyw, launcher/   the hub (its window) and the client downloader/patcher
-    CLIENT.bat                opens the game client
+    Open-RuneLite.bat         opens the game client
     sdk/, scripts/templates/  the Python SDK and the script template (not our script pack)
     assets/                   icons and artwork
     runtime/python/           Python (the official embeddable build)
@@ -41,7 +41,7 @@ CONTENT = [
     ("launcher/fetch_runelite.py", "launcher/fetch_runelite.py"),
     ("launcher/hub-window.ps1", "launcher/hub-window.ps1"),
     ("launcher/HubWindow.cs", "launcher/HubWindow.cs"),
-    ("launcher/package/CLIENT.bat", "CLIENT.bat"),
+    ("launcher/package/Open-RuneLite.bat", "Open-RuneLite.bat"),
     ("launcher/stub/bin/Release/net48/BotScape.exe", "BotScape.exe"),
     ("launcher/stub/bin/Release/net48/BotScape.exe.config", "BotScape.exe.config"),
     ("sdk", "sdk"),

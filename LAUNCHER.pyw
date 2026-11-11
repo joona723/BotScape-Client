@@ -1602,12 +1602,27 @@ CLIENT_LAUNCH = {"lock": threading.Lock(), "at": 0.0}
 CLIENT_GAP = 10   # seconds between two clients starting
 
 
+# User-requested 2026-11-11: named so players can tell what it does (it was CLIENT.bat).
+CLIENT_BAT = "Open-RuneLite.bat"
+
+
+def remove_old_client_bat():
+    """Updates add files but never delete them, so installs from before the rename still have CLIENT.bat
+    (which also only knew the local server): remove it, so players see just Open-RuneLite.bat."""
+    if (ROOT / ".git").exists() or (ROOT / "SERVER.bat").exists():
+        return  # a development folder: its files are the developer's
+    try:
+        (ROOT / "CLIENT.bat").unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 def open_client(character):
     if focus_client(character or SETTINGS.get("main", "")):
         return None
-    bat = ROOT / "CLIENT.bat"
+    bat = ROOT / CLIENT_BAT
     if not bat.exists():
-        return "The client isn't installed (CLIENT.bat missing)."
+        return f"The client isn't installed ({CLIENT_BAT} missing)."
 
     def launch():
         # User-reported: after an update only one of several clients came back, the others showed an
@@ -1956,6 +1971,7 @@ def main_embedded():
     threading.Thread(target=WORLD.loop, daemon=True).start()
     threading.Thread(target=zazuosu_sign_in, daemon=True).start()
     threading.Thread(target=script_sync_loop, daemon=True).start()
+    remove_old_client_bat()
     parent = _arg("--parent-pid")
     if parent and parent.isdigit():
         watch_parent(int(parent))
@@ -1980,6 +1996,7 @@ def main():
     threading.Thread(target=WORLD.loop, daemon=True).start()
     if player_install():
         threading.Thread(target=update_check_loop, daemon=True).start()
+    remove_old_client_bat()
     threading.Thread(target=reopen_game_clients, daemon=True).start()
     threading.Thread(target=script_sync_loop, daemon=True).start()
     window = open_window()

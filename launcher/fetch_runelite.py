@@ -107,7 +107,7 @@ def patch_config_host():
 
     The check is `host.endsWith(".jagex.com")` in ClientLoader.downloadConfig; its string constant
     becomes "" (every host ends with it). Class-file string constants carry their own length, so the
-    edit is safe. The patched jar's name changed with this (botscape-anyhost-...), so CLIENT.bat
+    edit is safe. The patched jar's name changed with this (botscape-anyhost-...), so Open-RuneLite.bat
     re-patches installs made with the old 127.0.0.1-only patch; that old jar is removed.
     """
     source = next((LIB.parent / "original").glob("client-*.jar"), None) or next(LIB.glob("client-*.jar"))
@@ -150,7 +150,7 @@ def patch_rsa():
     # The game itself refuses hosts other than Jagex's and local ones (error_game_invalidhost): its
     # check ends with host.endsWith(".jagex.com"), and that constant becomes "" (every host ends with
     # it) in the class that holds the check (the one with "invalidhost"). The jar's new name makes
-    # CLIENT.bat re-patch installs made before this; the old jar is removed (two clash).
+    # Open-RuneLite.bat re-patch installs made before this; the old jar is removed (two clash).
     (LIB / "botscape-injected-client.jar").unlink(missing_ok=True)
     patched = LIB / "botscape-injected-anyhost-client.jar"
     ours = modulus.lower().encode()
