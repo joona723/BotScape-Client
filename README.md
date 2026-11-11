@@ -31,6 +31,18 @@ instead of Jagex's servers: the login RSA key (to the Bot Scape key above), the 
 config comes from `.jagex.com`, the window title, icons and splash (Bot Scape's), RuneLite's Discord presence
 (off), and it strips the jar signatures those edits invalidate.
 
+## Logging in
+
+Your Bot Scape character uses your zazuosu.com account. In the game client, type your character's name
+(your zazuosu name) and your **zazuosu.com password**, the same as on the website. Admin accounts use
+their own game password instead.
+
+From a fresh clone: run `Open-RuneLite.bat` (needs Java 21 and Python on PATH; the first run downloads and
+patches RuneLite) and log in as above. The hub (`Open-HUB.bat`) also signs you in and lets the client log in
+by itself, but you don't need it to play.
+
+After 6 wrong passwords a character's login waits 15 minutes ("Too many login attempts").
+
 ## Where it connects
 
 - `zazuosu.com`: sign-in, updates (`/downloads/botscape/`), profile pictures, hiscores
