@@ -1863,7 +1863,9 @@ ACTIONS = {
     "stop-all": lambda b: stop_everyone(),
     "restart-all": lambda b: restart_everyone(),
     "xp-reset": lambda b: XP.reset(b.get("character")),
-    "logout": lambda b: (RUNNER.stop(b["character"], quiet=True),
+    # A character out of the game (the member card's "Log out"). Was "logout" too, and the hub's own sign-out below
+    # (same key) replaced it: logging a member out signed you out of the hub (user-reported 2026-11-11).
+    "logout-character": lambda b: (RUNNER.stop(b["character"], quiet=True),
                          gw("POST", f"/bots/{urllib.parse.quote(b['character'])}/logout")) and None,
     "client": lambda b: open_client(b.get("character")),
     "clone": lambda b: (lambda r: r.get("error"))(

@@ -1494,7 +1494,7 @@ function characterMenu(c) {
   }
   if (online) {
     items.push({ sep: true }, { label: "Log out", icon: `<img src="/stop-16.png" alt="">`, cls: "red",
-      run: () => post("logout", { character: c.name }).then(r => r.ok && toast(`${shown(c)} logged out`)) });
+      run: () => post("logout-character", { character: c.name }).then(r => r.ok && toast(`${shown(c)} logged out`)) });
   }
   return items;
 }
