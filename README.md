@@ -17,6 +17,7 @@ anyone can read exactly what the player package does.
 | `launcher/fetch_runelite.py` | Downloads RuneLite 1.11.19 from RuneLite's own servers (checked against RuneLite's sha256 list) and patches it to log in to the Bot Scape server |
 | `launcher/client-key.txt` | The Bot Scape server's public RSA key, which the patcher puts in the client |
 | `Open-RuneLite.bat` | Starts the patched client |
+| `Open-HUB.bat` | Opens the hub (through `BotScape.exe`, so updates install first) |
 | `client-plugin/` | The Bot Scape RuneLite plugin (scripts, group, bank, live map panels) |
 | `sdk/` | The Python SDK scripts use to control your character through the server |
 | `scripts/templates/`, `scripts/botscape/Lumby Chicken Killer.py` | The script template and an example script |
