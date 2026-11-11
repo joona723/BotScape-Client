@@ -1975,10 +1975,31 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200 if not error else 400, {"ok": not error, "error": error})
 
 
+def no_password_prompts(profile):
+    """User-reported (2026-11-11): Edge offered to save the hub's sign-in ("Save your password?"). The hub window's
+    own Edge profile has its password manager off (the hub keeps its own sign-in)."""
+    prefs = profile / "Default" / "Preferences"
+    try:
+        data = json.loads(prefs.read_text(encoding="utf-8")) if prefs.exists() else {}
+    except (OSError, ValueError):
+        return
+    if data.get("credentials_enable_service") is False and (data.get("profile") or {}).get("password_manager_enabled") is False:
+        return
+    data["credentials_enable_service"] = False
+    data.setdefault("profile", {})["password_manager_enabled"] = False
+    data.setdefault("autofill", {})["profile_enabled"] = False
+    try:
+        prefs.parent.mkdir(parents=True, exist_ok=True)
+        prefs.write_text(json.dumps(data), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def open_window():
     url = f"http://127.0.0.1:{PORT}/"
     edge = find_edge()
     if edge:
+        no_password_prompts(ROOT / ".launcher-window")
         # Its own profile, without Edge's first-run, sign-in, sync and restore prompts.
         window = subprocess.Popen([edge, f"--app={url}", "--window-size=1440,900",
                                  f"--user-data-dir={ROOT / '.launcher-window'}", "--no-first-run",
