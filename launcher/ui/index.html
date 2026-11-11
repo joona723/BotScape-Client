@@ -58,7 +58,7 @@
   .news-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); }
   .news-form input, .news-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border, #3a4250);
     background: rgba(0,0,0,.2); color: var(--text); font: inherit; }
-  .news-form textarea { min-height: 140px; resize: vertical; }
+  .news-form textarea { min-height: 140px; max-height: 75vh; resize: vertical; line-height: 1.45; }
   .news-form .row { display: flex; gap: 8px; justify-content: flex-end; }
   #news { max-width: 760px; margin: 0 auto; padding: 4px 4px 24px; display: grid; gap: 14px; }
   .news-post { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
@@ -801,10 +801,14 @@ async function loadNews() {
   catch (e) { /* offline */ }
   renderNews();
 }
+// User-requested (2026-11-11): editing a long post in a small box was painful; the box grows with its text.
+function growNews(t) {
+  if (!t || !t.offsetParent) return;   // not on screen (another tab): it keeps its size
+  t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight + 4, Math.round(innerHeight * 0.75)) + "px"; }
 function newsForm(post) {
   return `<div class="news-form"><b>${post ? "Edit post" : "Write a post"}</b>
     <input id="newsTitle" maxlength="120" placeholder="Title" value="${esc(post ? post.title : "")}">
-    <textarea id="newsBody" placeholder="What's going on? A blank line starts a new paragraph.">${esc(post ? post.body : "")}</textarea>
+    <textarea id="newsBody" oninput="growNews(this)" placeholder="What's going on? A blank line starts a new paragraph.">${esc(post ? post.body : "")}</textarea>
     <div class="row">${post ? `<button class="btn" onclick="newsEditing=null;renderNews()">Cancel</button>` : ""}
       <button class="btn gold" onclick="saveNews()">${post ? "Save" : "Post"}</button></div></div>`;
 }
@@ -958,6 +962,7 @@ function renderNews() {
         ${newsAdmin ? `<span class="news-tools"><button onclick="newsEditing=${p.id};renderNews()">Edit</button><button onclick="deleteNews(${p.id})">Delete</button></span>` : ""}</div></div></div>
       <div class="news-body">${String(p.body).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join("")}</div></article>`;
   })()).join("") : `<div class="hint" style="padding:16px">No news yet (or the website can't be reached).</div>`);
+  growNews($("newsBody"));
 }
 function colorFor(name) {
   if (data && name === data.main) return "#e0a83a";
