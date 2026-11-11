@@ -897,15 +897,8 @@ def list_scripts():
         item = shop.get(entry["name"])
         if item:
             entry.update(shop=True, locked=bool(item.get("locked")), cost=item.get("cost"), shopId=item.get("shopId"))
-    # Bot Scape scripts this account doesn't get yet: shown locked, "Coming later" (not for sale), never their code.
-    have = {e["name"] for e in packaged}
-    for item in BOTSCAPE_SYNC["locked"]:
-        name = item.get("name") or ""
-        if name and name not in have:
-            packaged.append({"id": f"botscape/{name}.py", "name": name, "file": f"{name}.py", "source": "botscape",
-                             "description": item.get("description") or "", "skill": script_skill(name), "options": [],
-                             "icon": "botscape", "locked": True, "comingLater": True})
-    packaged.sort(key=lambda e: e["name"].lower())
+    # Bot Scape scripts this account doesn't get yet aren't listed (user-requested 2026-11-11: hide the "Coming later"
+    # cards); locked_reason still refuses them by name.
     return packaged + script_entries(bot_dir(), "mine")
 
 
