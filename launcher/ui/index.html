@@ -1028,10 +1028,11 @@ function toggleOffline() {
 function splitTeam(members, isActive, cardOf, extra = "") {
   const active = members.filter(isActive), offline = members.filter(c => !isActive(c));
   if (!offline.length) return active.map(cardOf).join("") + extra;
-  return active.map(cardOf).join("") + extra +
+  // User-requested (2026-11-11): the offline members right under the leader, the "Add a group member" card last.
+  return active.map(cardOf).join("") +
     `<button class="offline-toggle ${offlineOpen ? "open" : ""}" data-offline-toggle title="${offlineOpen ? "Hide" : "Show"} the offline members">` +
     `<span class="caret">▸</span>Offline <span class="count">${offline.length}</span></button>` +
-    (offlineOpen ? `<div class="offline-list">${offline.map(cardOf).join("")}</div>` : "");
+    (offlineOpen ? `<div class="offline-list">${offline.map(cardOf).join("")}</div>` : "") + extra;
 }
 function renderTeam() {
   const team = $("team");
