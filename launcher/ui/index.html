@@ -1168,7 +1168,7 @@ function renderTeam() {
     <div class="bar" style="margin:10px 0 6px"><div style="width:${pct}%;background:var(--gold)"></div></div>
     <div class="hint">${nextText}</div>
     <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-      ${members < unlocked ? `<button class="btn gold small" id="newClone"><img src="/clone-16.png" alt="" style="filter:brightness(0)">+ New group member</button>` : ""}
+      ${""/* User-requested (2026-11-11): no "+ New group member" here, the "Add a group member" card does it. */}
       <div class="toggle ${data.autoClone ? "on" : ""}" id="autoClone" title="Adds members when your total level allows, and runs AIO on everyone in the group (not on a character you play in a client or stopped by hand)"><span class="switch"></span>Auto</div>
     </div>`;
   if ($("newClone")) $("newClone").onclick = () => openMemberDialog();
