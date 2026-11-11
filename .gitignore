@@ -9,3 +9,5 @@ tools/
 runtime/
 bots/
 dist/
+.botscape-client/
+*.env
