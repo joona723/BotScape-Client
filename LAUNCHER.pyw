@@ -1583,7 +1583,7 @@ class World:
         if not SETTINGS.get("auto_clone", False):
             return
         script = next((s["id"] for source in ("mine", "botscape") for s in list_scripts()
-                       if s["source"] == source and s["name"].lower() == "aio"), None)
+                       if s["source"] == source and s["name"].lower() == "aio" and not s.get("locked")), None)
         if script is None:
             return
         running = RUNNER.running()
