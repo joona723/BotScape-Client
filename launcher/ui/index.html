@@ -1261,6 +1261,7 @@ function renderScripts() {
     const running = sel && sel.script === s.name;
     const pts = data.votes ? data.votes.points : 0;
     const tag = running ? `<span class="tag run">Running</span>`
+      : s.comingLater ? `<span class="tag lock"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Coming later</span>`
       : s.locked ? `<span class="tag lock"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Locked</span>`
       : s.shop ? `<span class="tag own">Unlocked</span>` : "";
     const iconSkill = s.icon && SKILLS.includes(s.icon) ? s.icon : s.skill;
@@ -1272,7 +1273,8 @@ function renderScripts() {
       <div class="desc">${esc(s.description || "No description.")}</div>
       ${(s.options || []).length ? `<div class="opts-hint">⚙ ${s.options.length} options: asked when you press Run</div>` : ""}
       <div class="row">
-        ${s.locked ? `<button class="unlock-btn" data-unlock="${esc(s.shopId)}" ${pts < s.cost ? "disabled" : ""}
+        ${s.comingLater ? `<button class="unlock-btn" disabled title="Not available yet: it comes later"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Coming later</button>`
+        : s.locked ? `<button class="unlock-btn" data-unlock="${esc(s.shopId)}" ${pts < s.cost ? "disabled" : ""}
             title="${pts < s.cost ? "Vote for Bot Scape to earn points (1 point per vote)" : "Unlock it with your vote points"}"><svg class="lock-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm-3 8V7a3 3 0 0 1 6 0v3z"/></svg>Unlock · ${s.cost} pts</button>`
         : running ? `<button class="stop-btn" data-stop="${esc(selected)}"><img src="/stop-16.png" alt="">Stop</button>`
                   : `<button class="run-btn" data-run="${esc(s.id)}"><img src="/play-16.png" alt="">Run on ${esc(selected || "")}</button>`}

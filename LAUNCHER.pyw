@@ -801,6 +801,59 @@ def sync_logs():
                 continue
 
 
+# User-requested (2026-11-11): one copy of Bot Scape's scripts, on the server. The hub keeps its scripts/botscape folder
+# in step with what this account gets (the free Lumby series for everyone; all of them for the host's accounts and
+# admins) and learns which ones are locked ("coming later", not for sale). The download's Lumby files stay as the
+# fallback while the server can't be reached.
+BOTSCAPE_SYNC = {"locked": [], "at": 0.0}
+BOTSCAPE_STATE = PACKAGED_SCRIPTS / ".botscape-sync.json"
+
+
+def sync_botscape_scripts():
+    name = SETTINGS.get("main")
+    if not name:
+        return
+    base = f"/players/{urllib.parse.quote(name)}/botscape"
+    listing = gw("GET", base, timeout=15)
+    if not isinstance(listing, dict) or "files" not in listing:
+        return   # offline, not signed in, or an older server
+    try:
+        state = json.loads(BOTSCAPE_STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    listed = set()
+    for f in listing["files"]:
+        rel = f["path"]
+        listed.add(rel)
+        path = PACKAGED_SCRIPTS / rel
+        try:
+            if path.is_file() and _sha1(path.read_bytes()) == f["sha"]:
+                state[rel] = f["sha"]
+                continue
+            got = gw("GET", base + "?path=" + urllib.parse.quote(rel), timeout=30)
+            if not isinstance(got, dict) or "content" not in got:
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(base64.b64decode(got["content"]))
+            state[rel] = got.get("sha", f["sha"])
+        except OSError:
+            continue   # in use: next time
+    # Files it synced before that this account no longer gets (and nobody changed here) go.
+    for rel in [r for r in state if r not in listed]:
+        path = PACKAGED_SCRIPTS / rel
+        try:
+            if path.is_file() and _sha1(path.read_bytes()) == state[rel]:
+                path.unlink()
+            state.pop(rel, None)
+        except OSError:
+            continue
+    try:
+        BOTSCAPE_STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
+    except OSError:
+        pass
+    BOTSCAPE_SYNC.update(locked=listing.get("locked") or [], at=time.time())
+
+
 def script_sync_loop():
     while True:
         try:
@@ -808,6 +861,11 @@ def script_sync_loop():
                 sync_scripts()
         except Exception as e:  # never let the sync take the hub down
             SYNC.update(status=f"error: {e}")
+        try:
+            if not is_host():
+                sync_botscape_scripts()
+        except Exception:  # noqa: BLE001 - never let the sync take the hub down
+            pass
         try:
             if not is_host():
                 sync_logs()
@@ -839,6 +897,15 @@ def list_scripts():
         item = shop.get(entry["name"])
         if item:
             entry.update(shop=True, locked=bool(item.get("locked")), cost=item.get("cost"), shopId=item.get("shopId"))
+    # Bot Scape scripts this account doesn't get yet: shown locked, "Coming later" (not for sale), never their code.
+    have = {e["name"] for e in packaged}
+    for item in BOTSCAPE_SYNC["locked"]:
+        name = item.get("name") or ""
+        if name and name not in have:
+            packaged.append({"id": f"botscape/{name}.py", "name": name, "file": f"{name}.py", "source": "botscape",
+                             "description": item.get("description") or "", "skill": script_skill(name), "options": [],
+                             "icon": "botscape", "locked": True, "comingLater": True})
+    packaged.sort(key=lambda e: e["name"].lower())
     return packaged + script_entries(bot_dir(), "mine")
 
 
@@ -874,8 +941,11 @@ def vote_state(now=False):
 
 
 def locked_reason(script):
-    """Why `script` ('botscape/Lumby Cow Killer.py') can't run here: a vote-shop script not unlocked yet."""
+    """Why `script` ('botscape/Lumby Cow Killer.py') can't run here: a vote-shop script not unlocked yet, or a Bot
+    Scape script that isn't available to this account yet."""
     source, _, name = script.rpartition("/")
+    if source == "botscape" and Path(name).stem in {i.get("name") for i in BOTSCAPE_SYNC["locked"]}:
+        return f"{Path(name).stem} is coming later: it isn't available yet."
     item = VOTES["shop"].get(Path(name).stem) if source == "botscape" else None
     if item and item.get("locked"):
         return f"{item.get('name') or Path(name).stem} is locked: unlock it for {item.get('cost')} vote points first."
