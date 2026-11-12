@@ -75,6 +75,14 @@ final class Gateway {
         return token == null ? builder : builder.header("Authorization", "Bearer " + token);
     }
 
+    /** This install is signed in: the host's admin key, or a token from bots/<main>/bot.env. */
+    static boolean signedIn() {
+        if (java.nio.file.Files.exists(root.resolve("rsmod").resolve(".data").resolve("gateway-admin.key"))) {
+            return true;
+        }
+        return token() != null;
+    }
+
     static Object get(String path) throws Exception {
         HttpRequest req = authorize(HttpRequest.newBuilder(URI.create(BASE + path)).timeout(Duration.ofSeconds(5))).GET().build();
         return Json.parse(HTTP.send(req, HttpResponse.BodyHandlers.ofString()).body());

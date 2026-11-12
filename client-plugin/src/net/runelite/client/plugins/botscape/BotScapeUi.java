@@ -35,6 +35,12 @@ final class BotScapeUi
 	static final Color RED_HOVER = new Color(0xdd564d);
 	static final Color TEXT = new Color(0xe6e6e6);
 	static final Color MUTED = new Color(0x9a9a9a);
+
+	/** Text for a Swing HTML label: a name can't add markup. */
+	static String esc(String text)
+	{
+		return text == null ? "" : text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+	}
 	static final Color CARD = ColorScheme.DARKER_GRAY_COLOR;
 	static final Color CARD_HOVER = ColorScheme.DARKER_GRAY_HOVER_COLOR;
 

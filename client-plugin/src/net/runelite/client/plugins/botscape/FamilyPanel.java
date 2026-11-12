@@ -53,6 +53,17 @@ class FamilyPanel extends PluginPanel
 		body.add(BotScapeUi.small(data.offline() ? "Server offline" : "Server online",
 			data.offline() ? BotScapeUi.RED : new Color(0x5fd38d)));
 
+		if (data.foreign() != null)
+		{
+			body.add(Box.createVerticalStrut(10));
+			body.add(BotScapeUi.small("<html><div style='width:170px'>You're playing <b>" + BotScapeUi.esc(data.foreign()) + "</b>. This client was opened for "
+				+ BotScapeUi.esc(data.main()) + "'s group, so its group and bank panels stay off. To use them for " + BotScapeUi.esc(data.foreign())
+				+ ", open the hub signed in as that character and start the client from there.</div></html>", MUTED));
+			body.revalidate();
+			body.repaint();
+			return;
+		}
+
 		Map<String, Object> fam = data.family();
 		int total = Gateway.num(fam.get("totalLevel"));
 		// -1: members need no levels; nextUnlockAt null: the group is full (server's group rules).

@@ -627,6 +627,7 @@ public class BotScapePlugin extends Plugin
 		switch (event.getGameState())
 		{
 			case LOGIN_SCREEN:
+				data.loggedOut();
 				loginScreen();
 				break;
 			case CONNECTION_LOST:
@@ -639,6 +640,8 @@ public class BotScapePlugin extends Plugin
 				autoLogin = false;
 				reconnecting = false;
 				restoreDisplaySettings();
+				// The panels are for the group this client was opened for (see BotScapeData.foreign).
+				data.loggedIn(client.getUsername());
 				break;
 			default:
 				break;

@@ -30,6 +30,8 @@ class BotScapeData
 	private volatile Map<String, Object> familyState = Map.of();
 	private volatile boolean offline = true;
 	private volatile Map<String, Object> activities = Map.of();
+	private volatile String foreign;
+	private volatile String playing;
 
 	BotScapeData(String main, Path root)
 	{
@@ -155,8 +157,72 @@ class BotScapeData
 			{
 				offline = true;
 			}
+			String login = playing;
+			if (login != null)
+			{
+				foreign = inGroup(login) ? null : login;
+			}
 			SwingUtilities.invokeLater(() -> listeners.forEach(Runnable::run));
 		});
+	}
+
+	/**
+	 * The character this client is logged in as when it isn't in the group the client was opened for, else null
+	 * (user-reported 2026-11-12: logged in as Test11, the panels showed zazu's group and its scripts ran on zazu).
+	 * The Scripts and Group panels stay off for it.
+	 */
+	String foreign()
+	{
+		return foreign;
+	}
+
+	/** The client logged in as [login] (the name typed at the login screen): checked off the client thread. */
+	void loggedIn(String login)
+	{
+		playing = login;
+		refresh();
+	}
+
+	void loggedOut()
+	{
+		playing = null;
+		if (foreign != null)
+		{
+			foreign = null;
+			SwingUtilities.invokeLater(() -> listeners.forEach(Runnable::run));
+		}
+	}
+
+	/**
+	 * Is [login] (the name typed at the login screen) one of this group's characters? Unknown (the group hasn't
+	 * loaded, or this install has no sign-in at all) counts as yes: then there's nothing to mix up.
+	 */
+	boolean inGroup(String login)
+	{
+		if (login == null || login.isBlank() || family.isEmpty() || !Gateway.signedIn())
+		{
+			return true;
+		}
+		String name = login.strip().toLowerCase().replace('_', ' ');
+		if (name.equals(main.replace('_', ' ')))
+		{
+			return true;
+		}
+		for (String key : new String[]{"clones", "members"})
+		{
+			for (Object o : Gateway.list(family.get(key)))
+			{
+				Map<String, Object> c = Gateway.map(o);
+				for (String field : new String[]{"name", "display"})
+				{
+					if (Gateway.str(c.get(field)).toLowerCase().replace('_', ' ').equals(name))
+					{
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	void shutdown()

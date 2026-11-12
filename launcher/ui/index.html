@@ -88,7 +88,12 @@
   ::-webkit-scrollbar-thumb { background: #2b323d; border-radius: 5px; border: 2px solid var(--page); }
 
   /* layout */
-  .app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+  /* Named rows: the sign-in banner has its own (empty while it's hidden). Without them a showing banner took the
+     header's 64px row and pushed the header into the stretchy one (user-reported 2026-11-12: a huge header). */
+  .app { display: grid; grid-template-rows: auto 64px 1fr; grid-template-areas: "banner" "header" "body"; height: 100vh; }
+  .app > .zazu-banner { grid-area: banner; }
+  .app > header { grid-area: header; }
+  .app > .body { grid-area: body; }
   header { display: flex; align-items: center; gap: 16px; padding: 0 20px; background: var(--panel);
     border-bottom: 1px solid var(--border); }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .06em; }

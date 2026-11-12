@@ -404,8 +404,15 @@ class ScriptsPanel extends PluginPanel
 		return login == null || login.isBlank() ? data.main() : login.strip();
 	}
 
+	private String shownForeign;
+
 	private void onData()
 	{
+		if (!java.util.Objects.equals(shownForeign, data.foreign()))
+		{
+			shownForeign = data.foreign();
+			paintCards();
+		}
 		String s = data.status(selected());
 		status.set(s.equals("logging_in") ? "logging in" : s, BotScapeUi.statusColor(s));
 		status.setToolTipText(data.activity(selected()).isEmpty() ? null : data.activity(selected()));
@@ -468,6 +475,15 @@ class ScriptsPanel extends PluginPanel
 	private void paintCards()
 	{
 		cards.removeAll();
+		if (data.foreign() != null)
+		{
+			cards.add(BotScapeUi.small("<html><div style='width:170px'>You're playing <b>" + BotScapeUi.esc(data.foreign()) + "</b>. This client was opened for "
+				+ BotScapeUi.esc(data.main()) + "'s group, so its scripts stay off. To use them for " + BotScapeUi.esc(data.foreign())
+				+ ", open the hub signed in as that character and start the client from there.</div></html>", MUTED));
+			cards.revalidate();
+			cards.repaint();
+			return;
+		}
 		String who = selected();
 		Running current = running.get(who);
 		if (current != null && !current.process.isAlive())
@@ -618,6 +634,11 @@ class ScriptsPanel extends PluginPanel
 
 	private void run(String who, String script)
 	{
+		if (data.foreign() != null)
+		{
+			say(null, "Not while you're playing " + data.foreign() + ": this client's scripts are for " + data.main() + "'s group.", RED);
+			return;
+		}
 		stop(who);
 		// The install's own Python (players may not have one on PATH), else the system's.
 		Path root = Path.of(System.getProperty("botscape.root", ".")).toAbsolutePath().normalize();
