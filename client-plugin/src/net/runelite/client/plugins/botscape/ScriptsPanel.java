@@ -572,6 +572,54 @@ class ScriptsPanel extends PluginPanel
 		return card;
 	}
 
+	private static long modified(Path file)
+	{
+		try
+		{
+			return Files.getLastModifiedTime(file).toMillis();
+		}
+		catch (java.io.IOException e)
+		{
+			return 0;
+		}
+	}
+
+	/** The newest change in the script folder's lib/ (the shared code a script runs with), or 0. */
+	private static long newestLib(Path script)
+	{
+		Path lib = script.getParent() == null ? null : script.getParent().resolve("lib");
+		if (lib == null || !Files.isDirectory(lib))
+		{
+			return 0;
+		}
+		try (Stream<Path> files = Files.list(lib))
+		{
+			return files.filter(p -> p.toString().endsWith(".py")).mapToLong(ScriptsPanel::modified).max().orElse(0);
+		}
+		catch (java.io.IOException e)
+		{
+			return 0;
+		}
+	}
+
+	/** "today 08:05", "yesterday 21:40" or "11 Nov 21:40". */
+	private static String when(long millis)
+	{
+		java.time.LocalDateTime t = java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(millis),
+			java.time.ZoneId.systemDefault());
+		java.time.LocalDate today = java.time.LocalDate.now();
+		String time = t.format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"));
+		if (t.toLocalDate().equals(today))
+		{
+			return "today " + time;
+		}
+		if (t.toLocalDate().equals(today.minusDays(1)))
+		{
+			return "yesterday " + time;
+		}
+		return t.format(java.time.format.DateTimeFormatter.ofPattern("d MMM HH:mm", java.util.Locale.ENGLISH));
+	}
+
 	private Component card(String[] script, boolean isRunning, long started)
 	{
 		String name = script[0];
@@ -600,6 +648,19 @@ class ScriptsPanel extends PluginPanel
 		{
 			JLabel d = BotScapeUi.small("<html><div style='width:120px'>" + description + "</div></html>", MUTED);
 			text.add(d);
+		}
+		// User-requested (2026-11-12): which version you have. The hub writes a script only when the server's copy
+		// changed, so this is when the newest version arrived; a running one says if a newer one came in since.
+		Path file = Path.of(script[3]);
+		long changed = Math.max(modified(file), newestLib(file));
+		if (isRunning && changed > started)
+		{
+			text.add(BotScapeUi.small("<html><div style='width:120px'>Updated " + when(changed)
+				+ ": stop and run it again for the new version</div></html>", GOLD));
+		}
+		else if (modified(file) > 0)
+		{
+			text.add(BotScapeUi.small("Updated " + when(modified(file)), MUTED));
 		}
 		card.add(text, BorderLayout.CENTER);
 

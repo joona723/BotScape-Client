@@ -19,6 +19,7 @@ anyone can read exactly what the player package does.
 | `launcher/client-key.txt` | The Bot Scape server's public RSA key, which the patcher puts in the client |
 | `Open-RuneLite.bat` | Starts the patched client |
 | `Open-HUB.bat` | Opens the hub (through `BotScape.exe`, so updates install first) |
+| `STOP-ALL.bat` | Stops the hub, its window, the game clients and scripts running from this folder (before deleting it, say) |
 | `client-plugin/` | The Bot Scape RuneLite plugin (scripts, group, bank, live map panels) |
 | `sdk/` | The Python SDK scripts use to control your character through the server |
 | `scripts/templates/`, `scripts/botscape/Lumby Chicken Killer.py` | The script template and an example script |

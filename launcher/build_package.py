@@ -9,6 +9,7 @@ an id that changes when the file does) and what BotScape.exe updates from:
     LAUNCHER.pyw, launcher/   the hub (its window) and the client downloader/patcher
     Open-RuneLite.bat         opens the game client
     Open-HUB.bat              opens the hub (through BotScape.exe, so updates install first)
+    STOP-ALL.bat              stops the hub, clients and scripts running from this folder
     sdk/, scripts/templates/  the Python SDK and the script template (not our script pack)
     assets/                   icons and artwork
     runtime/python/           Python (the official embeddable build)
@@ -44,6 +45,7 @@ CONTENT = [
     ("launcher/HubWindow.cs", "launcher/HubWindow.cs"),
     ("launcher/package/Open-RuneLite.bat", "Open-RuneLite.bat"),
     ("launcher/package/Open-HUB.bat", "Open-HUB.bat"),
+    ("launcher/package/STOP-ALL.bat", "STOP-ALL.bat"),
     ("launcher/stub/bin/Release/net48/BotScape.exe", "BotScape.exe"),
     ("launcher/stub/bin/Release/net48/BotScape.exe.config", "BotScape.exe.config"),
     ("sdk", "sdk"),
