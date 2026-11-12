@@ -1603,6 +1603,7 @@ class World:
                 r = running.get(c["name"])
                 c["script"], c["started"] = (r["script"], r["started"]) if r else (None, None)
         data["scripts"] = list_scripts()
+        data["clientSetup"] = CLIENT_SETUP["text"]
         data["votes"] = VOTES["votes"]
         data["main"] = SETTINGS["main"]
         # Signed in = a character with its password here. Not signed in but a zazuosu session is
@@ -1680,6 +1681,48 @@ def remove_old_client_bat():
         pass
 
 
+# User-requested (2026-11-12): the first Play downloaded RuneLite for minutes with nothing on screen. The hub gets the
+# client ready itself and says how far it is (the banner at the top of the hub).
+CLIENT_SETUP = {"text": ""}
+CLIENT_LIB = ROOT / "tools" / "runelite" / "lib"
+
+
+def prepare_client():
+    """Download RuneLite and make the Bot Scape plugin if they're missing, showing progress. False if it failed."""
+    steps = []
+    if not (CLIENT_LIB / "botscape-injected-anyhost-client.jar").exists():
+        steps.append(("fetch_runelite.py", "Downloading the game client"))
+    if not (CLIENT_LIB / "botscape-plugin.jar").exists() and (ROOT / "launcher" / "build_plugin.py").exists():
+        steps.append(("build_plugin.py", "Making the Bot Scape plugin"))
+    if not steps:
+        return True
+    python = sys.executable.replace("pythonw.exe", "python.exe")
+    if not Path(python).exists():
+        python = sys.executable
+    for script, label in steps:
+        CLIENT_SETUP["text"] = f"{label}…"
+        last = ""
+        try:
+            proc = subprocess.Popen([python, "-u", str(ROOT / "launcher" / script)], cwd=ROOT, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                                    creationflags=NO_WINDOW)
+            for line in proc.stdout:
+                last = line.strip() or last
+                m = re.match(r"progress (\d+)/(\d+)", last)
+                if m:
+                    CLIENT_SETUP["text"] = f"{label}: {m.group(1)}/{m.group(2)}…"
+            ok = proc.wait() == 0
+        except OSError as e:
+            ok, last = False, str(e)
+        if not ok:
+            CLIENT_SETUP["text"] = ""
+            RUNNER.add(None, f"{label} failed: {last}", "stop")
+            return False
+    CLIENT_SETUP["text"] = "The game client is ready: opening it…"
+    threading.Timer(20, lambda: CLIENT_SETUP.update(text="")).start()
+    return True
+
+
 def open_client(character):
     if focus_client(character or SETTINGS.get("main", "")):
         return None
@@ -1692,6 +1735,8 @@ def open_client(character):
         # error. They all start RuneLite with the same profile folder at the same moment; one at a
         # time, CLIENT_GAP seconds apart, they don't trip over each other.
         with CLIENT_LAUNCH["lock"]:
+            if not prepare_client():
+                return
             wait = CLIENT_LAUNCH["at"] + CLIENT_GAP - time.time()
             if wait > 0:
                 time.sleep(wait)

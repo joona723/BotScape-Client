@@ -41,10 +41,11 @@ def main():
     LIB.mkdir(parents=True, exist_ok=True)
     bootstrap = json.loads(fetch(BOOTSTRAP))
     (LIB.parent / "bootstrap.json").write_text(json.dumps(bootstrap, indent=2), encoding="utf-8")
-    for artifact in bootstrap["artifacts"]:
+    artifacts = [a for a in bootstrap["artifacts"] if windows_artifact(a["name"])]
+    for done, artifact in enumerate(artifacts, 1):
         name = artifact["name"]
-        if not windows_artifact(name):
-            continue
+        # The hub shows this while the client gets ready (user-requested 2026-11-12: nothing showed for minutes).
+        print(f"progress {done}/{len(artifacts)}", flush=True)
         target = LIB / name
         if (LIB.parent / "original" / name).exists():
             continue  # patched copy lives in lib

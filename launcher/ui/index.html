@@ -2099,7 +2099,8 @@ function renderHeader() {
   // Embedded in the Zazuosu launcher: it shows the brand and owns sign-in (zazuosu account).
   document.body.classList.toggle("embedded", !!data.embedded);
   const z = data.zazuosu || {};
-  $("zazuBanner").textContent = data.embedded && z.status !== "signed-in"
+  // The game client getting ready (first Play: RuneLite downloading), else the sign-in notices.
+  $("zazuBanner").textContent = data.clientSetup ? data.clientSetup : data.embedded && z.status !== "signed-in"
     ? (z.error || "Signing in with your zazuosu account…")
     : data.zazuosuPending && !data.signedIn ? "Signed in to zazuosu: your character connects as soon as the Bot Scape server is online…" : "";
   $("zazuBanner").style.display = $("zazuBanner").textContent ? "block" : "none";
