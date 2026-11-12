@@ -854,15 +854,20 @@ def sync_botscape_scripts():
     BOTSCAPE_SYNC.update(locked=listing.get("locked") or [], at=time.time())
 
 
+# The project's own folder (it has SERVER.bat) is where the scripts are written: never sync the server's copies over
+# them, even when its hub plays on the live server (2026-11-12: that overwrote an edit not yet committed).
+SOURCE_CHECKOUT = (ROOT / "SERVER.bat").exists()
+
+
 def script_sync_loop():
     while True:
         try:
-            if not is_host():
+            if not is_host() and not SOURCE_CHECKOUT:
                 sync_scripts()
         except Exception as e:  # never let the sync take the hub down
             SYNC.update(status=f"error: {e}")
         try:
-            if not is_host():
+            if not is_host() and not SOURCE_CHECKOUT:
                 sync_botscape_scripts()
         except Exception:  # noqa: BLE001 - never let the sync take the hub down
             pass
