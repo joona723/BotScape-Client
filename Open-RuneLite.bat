@@ -22,6 +22,10 @@ if "%SERVER%"=="" set "SERVER=botscape.zazuosu.com"
 if not exist "%ROOT%tools\runelite\lib\botscape-injected-anyhost-client.jar" (
     "%PY%" "%ROOT%launcher\fetch_runelite.py"
 )
+rem A copy cloned from the BotScape-Client repository has the plugin's source only: build it (or download it).
+if not exist "%ROOT%tools\runelite\lib\botscape-plugin.jar" if exist "%ROOT%launcher\build_plugin.py" (
+    "%PY%" "%ROOT%launcher\build_plugin.py"
+)
 
 cd /d "%ROOT%"
 start "" "%JAVA%" -XX:+DisableAttachMechanism -Xmx768m -Xss2m -XX:CompileThreshold=1500 ^

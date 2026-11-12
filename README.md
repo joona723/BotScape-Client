@@ -15,6 +15,7 @@ anyone can read exactly what the player package does.
 | `LAUNCHER.pyw`, `launcher/ui/` | The hub: a local web app on `http://127.0.0.1:8090`, shown in its own Edge app window. Runs your scripts, shows the group, bank, map |
 | `launcher/hub-window.ps1`, `launcher/HubWindow.cs` | The hub's window |
 | `launcher/fetch_runelite.py` | Downloads RuneLite 1.11.19 from RuneLite's own servers (checked against RuneLite's sha256 list) and patches it to log in to the Bot Scape server |
+| `launcher/build_plugin.py` | Makes the Bot Scape plugin (`client-plugin/`) for the client the first time: built from this source when a Java 21+ JDK is installed (`JAVA_HOME` or `javac`), otherwise the published one is downloaded |
 | `launcher/client-key.txt` | The Bot Scape server's public RSA key, which the patcher puts in the client |
 | `Open-RuneLite.bat` | Starts the patched client |
 | `Open-HUB.bat` | Opens the hub (through `BotScape.exe`, so updates install first) |
