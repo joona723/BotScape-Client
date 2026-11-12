@@ -1921,8 +1921,6 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         if url.path == "/api/overview":
             return self.send(200, WORLD.get())
-        if url.path == "/api/root":   # which folder this hub runs from (a second hub asks before showing this one)
-            return self.send(200, {"root": str(ROOT)})
         if url.path == "/api/forum":
             # User-requested (2026-11-09): the website's Forum in the hub too, read and written through the website
             # with this hub's zazuosu sign-in (it checks the limits and who may pin or delete).
@@ -2006,23 +2004,36 @@ def no_password_prompts(profile):
         pass
 
 
-def running_hub_root():
-    """The folder of the hub already answering on PORT, or None (an older hub doesn't say)."""
-    try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/root", timeout=3) as r:
-            return json.loads(r.read().decode("utf-8")).get("root")
-    except (OSError, ValueError):
-        return None
-
-
-def other_hub_message(other):
-    text = (f"Another Bot Scape hub is already running, from:\n{other}\n\n"
-            f"Close that one first, then open this one again:\n{ROOT}")
+def focus_hub_window():
+    """Restore and bring the running hub's window ("BotScape Hub") to the front. False if there's none."""
     try:
         import ctypes
-        ctypes.windll.user32.MessageBoxW(None, text, "Bot Scape", 0x40)
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        found = []
+
+        @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        def each(hwnd, _):
+            if user32.IsWindowVisible(hwnd):
+                buf = ctypes.create_unicode_buffer(256)
+                user32.GetWindowTextW(hwnd, buf, 256)
+                if buf.value == "BotScape Hub":
+                    found.append(hwnd)
+                    return False
+            return True
+
+        user32.EnumWindows(each, 0)
+        if not found:
+            return False
+        hwnd = found[0]
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)   # SW_RESTORE
+        user32.keybd_event(0x12, 0, 0, 0)   # a tap of Alt lets this process take the foreground
+        user32.keybd_event(0x12, 0, 2, 0)
+        user32.SetForegroundWindow(hwnd)
+        return True
     except (OSError, AttributeError):
-        print(text)
+        return False
 
 
 def open_window():
@@ -2102,13 +2113,10 @@ def main():
     try:
         server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     except OSError:
-        # Already running: show it, but only if it's this folder's hub. User-reported (2026-11-12): a fresh clone
-        # opened next to the installed hub showed that one, signed in as its account, as if the clone were.
-        other = running_hub_root()
-        if other and Path(other).resolve() != ROOT.resolve():
-            other_hub_message(other)
-            return
-        open_window()
+        # Already running (this folder's hub or another one's): bring its window to the front (user-requested
+        # 2026-11-12), or open one if it has none.
+        if not focus_hub_window():
+            open_window()
         return
     threading.Thread(target=server.serve_forever, daemon=True).start()
     threading.Thread(target=stop_orphan_scripts, daemon=True).start()
