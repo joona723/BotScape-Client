@@ -3,6 +3,12 @@ __pycache__/
 BotScape.exe
 BotScape.exe.config
 BotScape.exe.part
+*.old
+*.download
+.launcher-window/
+botscape-launcher.json
+launcher/update-attempt.json
+launcher/update-error.log
 installed.json
 version.txt
 launcher/reopen-clients.json
