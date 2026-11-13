@@ -181,7 +181,13 @@ def news_admin():
     if time.time() - NEWS_ADMIN["at"] > 300 and zazuosu_token():
         NEWS_ADMIN["at"] = time.time()
         try:
-            NEWS_ADMIN["value"] = bool(website("GET", "api/me", timeout=8).get("newsAdmin"))
+            me = website("GET", "api/me", timeout=8)
+            if me.get("error"):
+                # The website couldn't tell (the game server restarting, say): keep the last answer and ask again
+                # in a minute, not in 5 (user-reported 2026-11-12: the News editor vanished during a restart).
+                NEWS_ADMIN["at"] = time.time() - 240
+            else:
+                NEWS_ADMIN["value"] = bool(me.get("newsAdmin"))
         except Exception:  # noqa: BLE001 - offline: as before
             pass
     return NEWS_ADMIN["value"]

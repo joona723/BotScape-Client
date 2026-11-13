@@ -98,7 +98,7 @@ def main(bot):
         chicken = pick_chicken(bot)
         if chicken is None:
             tidy_up(bot, loot_pattern)     # no chicken free: pick up our own feathers still lying around
-            bot.wait_ticks(3)              # they respawn quickly
+            bot.wait_ticks(1)              # they respawn quickly: look again next tick (user-requested: no idling)
             continue
 
         bot.new_messages()                 # only what the game says from now on counts
@@ -118,13 +118,26 @@ def main(bot):
         # Fight until that chicken is gone (dead) or 30 seconds pass. Where it is gets followed: it wanders
         # during the fight, and looting where it stood at the first click left the feathers of every chicken
         # that died a few tiles away (user-reported: feather piles all over the pen).
-        last = {"at": (chicken["x"], chicken["z"])}
+        last = {"at": (chicken["x"], chicken["z"]), "idle": None, "dropped": False}
         def gone():
-            alive = next((n for n in bot.state()["npcs"] if n["index"] == chicken["index"]), None)
+            state = bot.state()
+            alive = next((n for n in state["npcs"] if n["index"] == chicken["index"]), None)
             if alive:
                 last["at"] = (alive["x"], alive["z"])
-            return alive is None
-        dead = bot.wait_until(gone, timeout=30)
+            if alive is None or (alive.get("hp") or 0) <= 0:   # dead: no need to watch its death animation
+                return True
+            # User-requested (2026-11-12, the cow killer's fix): an attack that didn't stick left the bot waiting
+            # the whole 30 s. Not fighting it for 3 s (not attacking, not walking, it not fighting back): pick again.
+            p = state["player"]
+            if (alive.get("hp") or 0) <= 0 or p.get("interacting") or p.get("moving") or alive.get("fightingMe"):
+                last["idle"] = None
+            elif last["idle"] is None:
+                last["idle"] = time.time()
+            elif time.time() - last["idle"] > 3:
+                last["dropped"] = True
+                return True
+            return False
+        dead = bot.wait_until(gone, timeout=30) and not last["dropped"]
         if dead:
             kills += 1
             bot.log(f"Killed chicken #{kills}")
@@ -196,7 +209,7 @@ UNREACHABLE_SECONDS = 60
 COOP_RANGE = 12   # chickens further than this from the coop are strays somewhere else
 
 
-def cant_reach(bot, ticks=4):
+def cant_reach(bot, ticks=2):   # the "can't reach" message comes within a tick or two
     """True if the game said "I can't reach that!" within the next few ticks."""
     for _ in range(ticks):
         bot.wait_ticks(1)
@@ -256,7 +269,7 @@ def loot(bot, pattern, at=None):
         if at is not None:
             items = [g for g in items if abs(g["x"] - at[0]) <= 3 and abs(g["z"] - at[1]) <= 3]
         return items
-    bot.wait_until(lambda: here(), timeout=4)
+    bot.wait_until(lambda: here(), timeout=2)   # drops appear a tick or two after the kill
     for _ in range(6):
         items = here()
         if not items or bot.inv_full():
@@ -283,9 +296,11 @@ def tidy_up(bot, pattern, radius=6, most=3):
 
 
 def bury_bones(bot):
-    for bones in [i for i in bot.inventory() if i["name"] == "Bones"]:
-        bot.item_option(bones, "Bury")
-        bot.wait_ticks(2)
+    bones = [i for i in bot.inventory() if i["name"] == "Bones"]
+    for n, b in enumerate(bones):
+        bot.item_option(b, "Bury")
+        if n < len(bones) - 1:
+            bot.wait_ticks(2)   # the next one after this one's buried; none after the last (user-requested: no idling)
 
 
 def eat_if_hurt(bot):
