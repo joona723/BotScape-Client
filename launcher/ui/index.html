@@ -60,6 +60,19 @@
     background: rgba(0,0,0,.2); color: var(--text); font: inherit; }
   .news-form textarea { min-height: 140px; max-height: 75vh; resize: vertical; line-height: 1.45; }
   .news-form .row { display: flex; gap: 8px; justify-content: flex-end; }
+  /* A post's type (user-requested 2026-11-13): colour and label; normal = as before. */
+  .lvl-info { --lvl: #4ea1ff; } .lvl-update { --lvl: #3fb950; } .lvl-warning { --lvl: #f0883e; } .lvl-critical { --lvl: #f85149; }
+  .news-post[class*="lvl-"], .si-news[class*="lvl-"] { border-color: color-mix(in srgb, var(--lvl) 55%, transparent);
+    border-left: 4px solid var(--lvl); background: color-mix(in srgb, var(--lvl) 9%, transparent); }
+  .news-post.lvl-critical { box-shadow: 0 0 0 1px color-mix(in srgb, var(--lvl) 35%, transparent), 0 6px 24px color-mix(in srgb, var(--lvl) 18%, transparent); }
+  .news-badge { display: inline-block; vertical-align: 2px; margin-right: 8px; padding: 2px 8px; border-radius: 999px; font-size: 11px;
+    font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--lvl, #666); }
+  .news-levels { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+  .news-levels label { cursor: pointer; }
+  .news-levels input { position: absolute; opacity: 0; pointer-events: none; }
+  .news-levels span { display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border, #3a4250); color: var(--text); }
+  .news-levels input:checked + span { color: #fff; background: var(--lvl, #3a4250); border-color: var(--lvl, #8b93a1); }
+  .news-levels input:focus-visible + span { outline: 2px solid var(--gold, #e0a83a); outline-offset: 2px; }
   #news { max-width: 760px; margin: 0 auto; padding: 4px 4px 24px; display: grid; gap: 14px; }
   .news-post { padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border, #3a4250); background: var(--card, rgba(255,255,255,.02)); }
   .news-post h3 { margin: 0 0 4px; font-size: 17px; color: var(--text); }
@@ -801,6 +814,15 @@ const lines = [];
 const ADMIN_CROWN = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAANCAYAAABy6+R8AAAAbElEQVR4nJ2S0QnAMAhEL/1wkazQkbpLlshIWaGL+OH1SwipodQDQQ/xiQhkNHrlb5/WuDbQGtUk9EevPFLrrVO99lj9PCmavgun5kkzDQABvPL5kiFJTSCHQk1CQGq94snuA2ad112+erZ6AKD/etZthAXXAAAAAElFTkSuQmCC" alt="Admin" title="Admin" style="width:13px;height:13px;vertical-align:-1px;image-rendering:pixelated"> ';
 // User-requested: the website's News in the hub (read only; written on the website by the news admins).
 let newsEditing = null, newsAdmin = false, newsPosts = [];
+// A post's type (user-requested 2026-11-13): colour + label. Normal posts (and old ones without a type) look as before.
+const NEWS_LEVELS = [["normal", "Normal", ""], ["info", "Info", "#4ea1ff"], ["update", "Update", "#3fb950"],
+  ["warning", "Warning", "#f0883e"], ["critical", "Critical", "#f85149"]];
+const newsLevel = p => (NEWS_LEVELS.find(l => l[0] === (p && p.level)) || NEWS_LEVELS[0]);
+const newsLevelClass = p => newsLevel(p)[0] === "normal" ? "" : ` lvl-${newsLevel(p)[0]}`;
+const newsBadge = p => newsLevel(p)[0] === "normal" ? "" : `<span class="news-badge">${newsLevel(p)[1]}</span>`;
+const newsLevelPicker = post => `<div class="news-levels">Type:${NEWS_LEVELS.map(([k, label, c]) =>
+  `<label${c ? ` style="--lvl:${c}"` : ""}><input type="radio" name="newsLevel" value="${k}" ${newsLevel(post)[0] === k ? "checked" : ""}><span>${label}</span></label>`).join("")}</div>`;
+const pickedNewsLevel = () => (document.querySelector('input[name="newsLevel"]:checked') || {}).value || "normal";
 async function loadNews() {
   try { const r = await (await fetch("/api/news", { cache: "no-store" })).json(); newsPosts = r.posts || []; newsAdmin = !!r.newsAdmin; }
   catch (e) { /* offline */ }
@@ -814,11 +836,12 @@ function newsForm(post) {
   return `<div class="news-form"><b>${post ? "Edit post" : "Write a post"}</b>
     <input id="newsTitle" maxlength="120" placeholder="Title" value="${esc(post ? post.title : "")}">
     <textarea id="newsBody" oninput="growNews(this)" placeholder="What's going on? A blank line starts a new paragraph.">${esc(post ? post.body : "")}</textarea>
+    ${newsLevelPicker(post)}
     <div class="row">${post ? `<button class="btn" onclick="newsEditing=null;renderNews()">Cancel</button>` : ""}
       <button class="btn gold" onclick="saveNews()">${post ? "Save" : "Post"}</button></div></div>`;
 }
 async function saveNews() {
-  const body = { title: $("newsTitle").value, body: $("newsBody").value };
+  const body = { title: $("newsTitle").value, body: $("newsBody").value, level: pickedNewsLevel() };
   if (newsEditing !== null) body.id = newsEditing;
   const r = await post("news", body);
   if (r && r.error) return;   // post() shows it
@@ -962,7 +985,7 @@ function renderNews() {
     const key = String(p.author || "?").toLowerCase();
     const av = `<span class="news-av" style="background:${colorFor(key)}">${esc(key[0].toUpperCase())}<img src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="this.remove()"></span>`;
     const date = new Date(p.at * 1000).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
-    return `<article class="news-post"><div class="news-head">${av}<div><h3>${esc(p.title)}</h3>
+    return `<article class="news-post${newsLevelClass(p)}"><div class="news-head">${av}<div><h3>${newsBadge(p)}${esc(p.title)}</h3>
       <div class="news-meta">${p.author ? `<b>${p.admin !== false ? ADMIN_CROWN : ""}${esc(p.author)}</b> · ` : ""}${date}${p.edited ? " · edited" : ""}
         ${newsAdmin ? `<span class="news-tools"><button onclick="newsEditing=${p.id};renderNews()">Edit</button><button onclick="deleteNews(${p.id})">Delete</button></span>` : ""}</div></div></div>
       <div class="news-body">${String(p.body).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join("")}</div></article>`;

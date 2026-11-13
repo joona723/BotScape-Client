@@ -195,7 +195,7 @@ def news_admin():
 
 def post_news(body):
     """A new post, an edit or a delete, sent to the website (its own admin check decides)."""
-    answer = website("POST", "api/news", {k: body[k] for k in ("id", "title", "body", "delete") if k in body})
+    answer = website("POST", "api/news", {k: body[k] for k in ("id", "title", "body", "level", "delete") if k in body})
     if answer.get("error"):
         return answer["error"]
     NEWS["at"] = 0.0   # read them again
@@ -230,6 +230,12 @@ def update_check_loop():
     (running scripts carry over, game clients reopen)."""
     while True:
         check_update()
+        if UPDATE["latest"] and recently_tried(UPDATE["latest"]):
+            # The updater already ran for this version and we're still on the old one: it failed. No new attempt for
+            # a while (user-reported 2026-11-13: Open-HUB.bat looped update -> "Couldn't check for updates" -> update);
+            # the Update button still tries at once.
+            time.sleep(120)
+            continue
         if UPDATE["latest"]:
             UPDATE["applyAt"] = UPDATE.get("applyAt") or time.time() + AUTO_UPDATE_DELAY
             while time.time() < UPDATE["applyAt"]:
@@ -247,6 +253,18 @@ def player_install():
     return (ROOT / "BotScape.exe").exists() and not (ROOT / "SERVER.bat").exists()
 
 
+UPDATE_ATTEMPT_FILE = ROOT / "launcher" / "update-attempt.json"
+
+
+def recently_tried(version):
+    """The updater was started for [version] in the last 30 minutes (and we're still not on it)."""
+    try:
+        tried = json.loads(UPDATE_ATTEMPT_FILE.read_text(encoding="utf-8"))
+        return tried.get("version") == version and time.time() - tried.get("at", 0) < 30 * 60
+    except (OSError, ValueError):
+        return False
+
+
 def update_now(_body):
     """Close this hub (scripts stop) and let BotScape.exe install the update and reopen it."""
     if not player_install():
@@ -261,6 +279,10 @@ def update_now(_body):
     reopen = close_game_clients()
     try:
         REOPEN_FILE.write_text(json.dumps({"clients": reopen, "scripts": scripts}), encoding="utf-8")
+    except OSError:
+        pass
+    try:
+        UPDATE_ATTEMPT_FILE.write_text(json.dumps({"version": UPDATE.get("latest"), "at": time.time()}), encoding="utf-8")
     except OSError:
         pass
     subprocess.Popen([str(stub)] + [a for a in sys.argv[1:]], cwd=ROOT)

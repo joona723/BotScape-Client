@@ -67,8 +67,11 @@ namespace BotScape
             try { Icon = Icon.ExtractAssociatedIcon(typeof(Program).Assembly.Location); } catch { }
 
             var logo = new PictureBox { Size = new Size(64, 64), Location = new Point(20, 20), SizeMode = PictureBoxSizeMode.Zoom };
-            var logoFile = Path.Combine(Program.Root, "assets", "brand", "hub-128.png");
-            if (File.Exists(logoFile)) logo.Image = Image.FromFile(logoFile);
+            // Read into memory, never Image.FromFile: that keeps the file locked while the window is open, and the
+            // update couldn't replace it (user-reported 2026-11-13: an endless "Couldn't check for updates" loop).
+            var logoFile = Path.Combine(Program.Root, "assets", "brand", "updater-logo.png");
+            if (!File.Exists(logoFile)) logoFile = Path.Combine(Program.Root, "assets", "brand", "hub-128.png");
+            try { if (File.Exists(logoFile)) logo.Image = new Bitmap(new MemoryStream(File.ReadAllBytes(logoFile))); } catch { }
             var title = new Label
             {
                 Text = "BOT SCAPE", Location = new Point(96, 30), AutoSize = true,
@@ -102,8 +105,10 @@ namespace BotScape
             }
             catch (Exception ex)
             {
-                // Offline or the server is down: play what's installed.
+                // Offline or the server is down: play what's installed. What went wrong goes in a log file
+                // (it used to go nowhere).
                 Debug.WriteLine(ex);
+                LogError("update check", ex);
                 SetStatus("Couldn't check for updates; starting anyway.");
                 await Task.Delay(800);
             }
@@ -118,6 +123,18 @@ namespace BotScape
         }
 
         private void SetStatus(string text) => _status.Text = text;
+
+        /// <summary>launcher/update-error.log: what an update couldn't do, for finding out why.</summary>
+        private static void LogError(string what, Exception ex)
+        {
+            try
+            {
+                var log = Path.Combine(Program.Root, "launcher", "update-error.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(log));
+                File.AppendAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {what}: {ex.GetType().Name}: {ex.Message}{Environment.NewLine}");
+            }
+            catch { }
+        }
 
         private static string Local(string path) => Path.Combine(Program.Root, path.Replace('/', Path.DirectorySeparatorChar));
 
@@ -149,6 +166,7 @@ namespace BotScape
                 }
 
                 long total = Math.Max(1, todo.Sum(f => f.size)), done = 0;
+                var failed = 0;
                 var clock = Stopwatch.StartNew();
                 long shownAt = -1000;
                 foreach (var f in todo)
@@ -181,10 +199,23 @@ namespace BotScape
                             }
                         }
                     }
-                    Replace(temp, local);
+                    try
+                    {
+                        Replace(temp, local);
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                    {
+                        // A file in use can't be replaced: leave it, carry on with the rest, and try it again next
+                        // time (one locked file used to stop the whole update, every time).
+                        LogError("replace " + f.path, ex);
+                        failed++;
+                        try { File.Delete(temp); } catch { }
+                        continue;
+                    }
                     installed[f.path] = f.id;
                     File.WriteAllText(installedFile, json.Serialize(installed));
                 }
+                // Done (a file still in use waits for the next update; the hub's own files are never in use here).
                 File.WriteAllText(versionFile, manifest.version);
                 SetStatus("Updated to BotScape Hub " + manifest.version + ".");
                 _bar.Value = 100;

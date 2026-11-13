@@ -123,10 +123,26 @@ def add_public_key():
     (DIST / "launcher" / "client-key.txt").write_text(modulus + "\n")
 
 
+# Never in the manifest (user-reported 2026-11-13: Open-HUB.bat looped "Updating to ..." / "Couldn't check for
+# updates"): BotScape.exe up to 2026.11.13 shows assets/brand/hub-128.png as its logo and keeps it locked while its
+# window is open, so it could never replace that file and stopped every full install (a GitHub copy, or an install
+# without installed.json) at it. The updater's logo is updater-logo.png now, read without locking it.
+NOT_IN_MANIFEST = {"manifest.json", "assets/brand/hub-128.png"}
+
+
+def updater_logo():
+    """assets/brand/updater-logo.png: the updater window's logo (see NOT_IN_MANIFEST)."""
+    brand = DIST / "assets" / "brand"
+    if (brand / "hub-128.png").exists():
+        shutil.copyfile(brand / "hub-128.png", brand / "updater-logo.png")
+
+
 def manifest(version):
     files = []
-    for file in sorted(DIST.rglob("*")):
-        if not file.is_file() or file.name in ("manifest.json",):
+    # BotScape.exe first: the updater replaces itself (renaming the running exe aside) before anything else, so a
+    # fixed updater is what installs the rest.
+    for file in sorted(DIST.rglob("*"), key=lambda f: (f.relative_to(DIST).as_posix() != "BotScape.exe", str(f))):
+        if not file.is_file() or file.relative_to(DIST).as_posix() in NOT_IN_MANIFEST or file.name == "manifest.json":
             continue
         rel = file.relative_to(DIST).as_posix()
         digest = hashlib.sha1(file.read_bytes()).hexdigest()[:16]
@@ -146,6 +162,7 @@ def main():
     add_public_key()
     add_python()
     add_jre()
+    updater_logo()
     version = time.strftime("%Y.%m.%d.%H%M")
     (DIST / "version.txt").write_text(version)
     data = manifest(version)
