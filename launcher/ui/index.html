@@ -1923,16 +1923,18 @@ function bindBankWindow(rerender) {
 }
 
 // --- output ------------------------------------------------------------------------------------
+// A group member's own name, not its hidden login ("g_rvtw24nu"; user-requested 2026-11-13).
+const whoName = n => shown(((data && data.characters) || []).find(c => c.name === n)) || n;
 function renderFilters() {
   const names = (data.characters || []).map(c => c.name);
   $("filters").innerHTML = [`<button class="filter ${outputFilter ? "" : "on"}" data-f="">Everyone</button>`]
-    .concat(names.map(n => `<button class="filter ${outputFilter === n ? "on" : ""}" data-f="${esc(n)}">${esc(n)}</button>`)).join("")
+    .concat(names.map(n => `<button class="filter ${outputFilter === n ? "on" : ""}" data-f="${esc(n)}">${esc(whoName(n))}</button>`)).join("")
     + `<div class="spacer"></div><button class="btn small" id="clearOut">Clear</button>`;
   $("filters").querySelectorAll("[data-f]").forEach(el => el.onclick = () => { outputFilter = el.dataset.f || null; renderFilters(); renderConsole(); });
   $("clearOut").onclick = () => { lines.length = 0; renderConsole(); };
 }
 function lineHtml(l) {
-  return `<span class="t">${l.time} </span>${l.who ? `<span class="w" style="color:${colorFor(l.who)}">${esc(l.who)} </span>` : ""}<span class="${l.kind}">${esc(l.text)}</span>\n`;
+  return `<span class="t">${l.time} </span>${l.who ? `<span class="w" style="color:${colorFor(l.who)}">${esc(whoName(l.who))} </span>` : ""}<span class="${l.kind}">${esc(l.text)}</span>\n`;
 }
 function renderConsole() {
   const el = $("console");
