@@ -18,7 +18,7 @@ anyone can read exactly what the player package does.
 | `launcher/build_plugin.py` | Makes the Bot Scape plugin (`client-plugin/`) for the client the first time: built from this source when a Java 21+ JDK is installed (`JAVA_HOME` or `javac`), otherwise the published one is downloaded |
 | `launcher/client-key.txt` | The Bot Scape server's public RSA key, which the patcher puts in the client |
 | `Open-RuneLite.bat` | Starts the patched client |
-| `Open-HUB.bat` | Opens the hub (through `BotScape.exe`, so updates install first) |
+| `Open-HUB.bat` | Opens the hub through `BotScape.exe`, so updates install first. A fresh clone has no `BotScape.exe`: the first run downloads it from zazuosu.com, and it installs the rest (Python runtime, client plugin) and keeps the copy updated |
 | `STOP-ALL.bat` | Stops the hub, its window, the game clients and scripts running from this folder (before deleting it, say) |
 | `client-plugin/` | The Bot Scape RuneLite plugin (scripts, group, bank, live map panels) |
 | `sdk/` | The Python SDK scripts use to control your character through the server |
@@ -43,7 +43,7 @@ From a fresh clone: run `Open-RuneLite.bat` (needs Java 21 and Python on PATH; t
 patches RuneLite) and log in as above. The hub (`Open-HUB.bat`) also signs you in and lets the client log in
 by itself, but you don't need it to play.
 
-After 6 wrong passwords a character's login waits 15 minutes ("Too many login attempts").
+After 6 wrong passwords from one address a character's login there waits 15 minutes ("Too many login attempts").
 
 ## Where it connects
 

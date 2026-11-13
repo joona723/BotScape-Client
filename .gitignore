@@ -1,4 +1,11 @@
 __pycache__/
+# What BotScape.exe installs and records in a clone (Open-HUB.bat fetches it)
+BotScape.exe
+BotScape.exe.config
+BotScape.exe.part
+installed.json
+version.txt
+launcher/reopen-clients.json
 *.pyc
 *.log
 launcher/settings.json

@@ -241,9 +241,10 @@ def update_check_loop():
 
 
 def player_install():
-    """An installed copy of Bot Scape (updates itself). A development folder (git, or the server's
-    SERVER.bat) never does: its files come from the developer, an update would overwrite them."""
-    return (ROOT / "BotScape.exe").exists() and not (ROOT / ".git").exists() and not (ROOT / "SERVER.bat").exists()
+    """An installed copy of Bot Scape (updates itself). A development folder (it has the server's SERVER.bat)
+    never does: its files come from the developer, an update would overwrite them. A git clone of the public
+    BotScape-Client repo updates too (user-requested 2026-11-13): Open-HUB.bat fetched its BotScape.exe."""
+    return (ROOT / "BotScape.exe").exists() and not (ROOT / "SERVER.bat").exists()
 
 
 def update_now(_body):
