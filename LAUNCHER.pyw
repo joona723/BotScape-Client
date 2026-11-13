@@ -1487,8 +1487,11 @@ class World:
             self.misses = getattr(self, "misses", 0) + 1
             if self.misses >= 2:
                 updating = server_updating()
+                # Not signed in to the game server yet (its zazuosu sign-in takes a few seconds at start): "Signing
+                # in", not "Server offline" (user-reported 2026-11-13: every start showed the server offline).
+                signing_in = not is_host() and not AUTH.get("token") and bool(zazuosu_token()) and ZAZUOSU.get("status") != "error"
                 with self.lock:
-                    self.data = {"online": False, "updating": updating, "embedded": EMBEDDED,
+                    self.data = {"online": False, "updating": updating, "embedded": EMBEDDED, "signingIn": signing_in,
                                  "zazuosu": {k: ZAZUOSU[k] for k in ("status", "error")}}
             return
         self.misses = 0

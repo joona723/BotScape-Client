@@ -584,8 +584,15 @@
   /* embedded in the Zazuosu launcher */
   body.embedded header .brand, body.embedded #accountChange, body.embedded #serverInput,
   body.embedded #serverSave { display: none !important; }
-  .zazu-banner { display: none; margin: 10px 16px 0; padding: 10px 14px; border-radius: 10px;
-    background: #3a2a12; border: 1px solid #6b4a1a; color: #f3d08a; font-size: 13px; }
+  /* User-requested 2026-11-13: the notice floats over the header's empty middle instead of pushing everything down
+     (its grid row stays empty); on a narrow window, where it would cover the header's buttons, at the bottom. */
+  .zazu-banner { display: none; position: fixed; z-index: 50; top: 12px; left: 50%; transform: translateX(-50%);
+    width: max-content; max-width: min(560px, calc(100vw - 560px)); padding: 9px 14px; border-radius: 10px;
+    background: #3a2a12; border: 1px solid #6b4a1a; color: #f3d08a; font-size: 13px; line-height: 1.35;
+    box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+  @media (max-width: 1000px) {
+    .zazu-banner { top: auto; bottom: 16px; max-width: calc(100vw - 32px); }
+  }
   /* empty states and setup */
   .empty { display: grid; place-items: center; text-align: center; color: var(--muted); padding: 60px 20px; gap: 10px; }
   .empty img { width: 240px; opacity: .9; }
@@ -2107,6 +2114,8 @@ function serverStatus(d) {
     return { cls: "updating", text: `Server updating · ${up.phase || "Updating"} · ${up.left > 0 ? `~${mins} min left` : "almost done"}`,
       tip: `A new version of Bot Scape is being installed (${pct}%). Scripts and clients carry on when it's back.` };
   }
+  // The hub's own sign-in to the server is still going (a few seconds at start): not the server being down.
+  if (d.signingIn) return { cls: "updating", text: "Signing in…", tip: "Signing in to the Bot Scape server with your zazuosu account." };
   return { cls: "off", text: "Server offline · reconnecting…", tip: "The Bot Scape server isn't answering right now. The hub reconnects by itself." };
 }
 function renderHeader() {
