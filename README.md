@@ -18,7 +18,7 @@ anyone can read exactly what the player package does.
 | `launcher/build_plugin.py` | Makes the Bot Scape plugin (`client-plugin/`) for the client the first time: built from this source when a Java 21+ JDK is installed (`JAVA_HOME` or `javac`), otherwise the published one is downloaded |
 | `launcher/client-key.txt` | The Bot Scape server's public RSA key, which the patcher puts in the client |
 | `Open-RuneLite.bat` | Starts the patched client |
-| `Open-HUB.bat` | Opens the hub through `BotScape.exe`, so updates install first. A fresh clone has no `BotScape.exe`: the first run downloads it from zazuosu.com, and it installs the rest (Python runtime, client plugin) and keeps the copy updated |
+| `Open-HUB.bat` | Opens the hub. In a git clone it first updates from GitHub (`git fetch` + `git reset --hard origin/main`: the tracked files match `main`; your `bots/`, settings and the bundled Python are untracked and kept), and the hub keeps doing that while it runs. Needs Git and Python on PATH; on a PC without Python it downloads `BotScape.exe` from zazuosu.com once to install the bundled one. A copy without `.git` (a ZIP) installs and updates through `BotScape.exe` |
 | `STOP-ALL.bat` | Stops the hub, its window, the game clients and scripts running from this folder (before deleting it, say) |
 | `client-plugin/` | The Bot Scape RuneLite plugin (scripts, group, bank, live map panels) |
 | `sdk/` | The Python SDK scripts use to control your character through the server |

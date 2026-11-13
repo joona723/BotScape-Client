@@ -209,8 +209,34 @@ def installed_version():
         return None
 
 
+def git_clone():
+    """A git clone of the public BotScape-Client repo (not a development folder): it updates with git pull, from
+    GitHub, never through BotScape.exe (user-requested 2026-11-13)."""
+    return (ROOT / ".git").exists() and not (ROOT / "SERVER.bat").exists()
+
+
+def git(*args, timeout=60):
+    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=timeout,
+                          creationflags=NO_WINDOW)
+
+
+def git_check_update():
+    """New commits on GitHub's main that this clone doesn't have: UPDATE["latest"] = the newest one's short id."""
+    try:
+        if git("fetch", "-q", "origin", "main", timeout=60).returncode:
+            return "Couldn't reach GitHub to check for updates."
+        behind = git("rev-list", "--count", "HEAD..origin/main").stdout.strip()
+        newest = git("rev-parse", "--short", "origin/main").stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "Couldn't run git to check for updates (is Git installed?)."
+    UPDATE["latest"] = newest if behind.isdigit() and int(behind) > 0 else None
+    return None
+
+
 def check_update(_body=None):
-    """Asks zazuosu.com for the newest version; an error text if it can't be reached."""
+    """Asks zazuosu.com for the newest version (a git clone: GitHub); an error text if it can't be reached."""
+    if git_clone():
+        return git_check_update()
     try:
         req = urllib.request.Request(MANIFEST_URL, headers={"User-Agent": "BotScape-hub"})
         with urllib.request.urlopen(req, timeout=15) as r:
@@ -247,10 +273,9 @@ def update_check_loop():
 
 
 def player_install():
-    """An installed copy of Bot Scape (updates itself). A development folder (it has the server's SERVER.bat)
-    never does: its files come from the developer, an update would overwrite them. A git clone of the public
-    BotScape-Client repo updates too (user-requested 2026-11-13): Open-HUB.bat fetched its BotScape.exe."""
-    return (ROOT / "BotScape.exe").exists() and not (ROOT / "SERVER.bat").exists()
+    """An installed copy of Bot Scape (BotScape.exe updates it). A development folder (it has the server's SERVER.bat)
+    never updates: its files come from the developer. A git clone updates itself with git pull (git_clone)."""
+    return (ROOT / "BotScape.exe").exists() and not (ROOT / "SERVER.bat").exists() and not git_clone()
 
 
 UPDATE_ATTEMPT_FILE = ROOT / "launcher" / "update-attempt.json"
@@ -265,8 +290,39 @@ def recently_tried(version):
         return False
 
 
+def git_update_now():
+    """A git clone: fetch + match GitHub's main, then this hub restarts on the new files (scripts carry on, clients stay)."""
+    # The tracked files are all ours (a player's own scripts live in bots/, which git ignores), and the script sync
+    # rewrites scripts/botscape: match GitHub exactly instead of merging, so a synced script can never end up with
+    # conflict markers. Untracked and ignored files (bots/, runtime/, settings) are never touched.
+    try:
+        pulled = git("fetch", "-q", "origin", "main", timeout=180)
+        if not pulled.returncode:
+            pulled = git("reset", "-q", "--hard", "origin/main")
+    except (OSError, subprocess.SubprocessError) as e:
+        return f"Couldn't run git: {e}"
+    if pulled.returncode:
+        why = (pulled.stderr or pulled.stdout).strip().splitlines()
+        return "The update from GitHub didn't work" + (f": {why[-1]}" if why else "") + " (run git pull in the folder yourself)."
+    scripts = {who: RUNNER.scripts.get(who) for who in RUNNER.running()}
+    RUNNER.stop_all()
+    try:
+        REOPEN_FILE.write_text(json.dumps({"clients": [], "scripts": scripts}), encoding="utf-8")
+    except OSError:
+        pass
+    # The new hub starts once this one has let go of its port and window.
+    restart = "import subprocess, sys, time; time.sleep(3); subprocess.Popen(sys.argv[1:])"
+    subprocess.Popen([sys.executable, "-c", restart, sys.executable, str(ROOT / "LAUNCHER.pyw")] + sys.argv[1:],
+                     cwd=ROOT, creationflags=NO_WINDOW | getattr(subprocess, "DETACHED_PROCESS", 0))
+    close_launcher_windows()
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return None
+
+
 def update_now(_body):
-    """Close this hub (scripts stop) and let BotScape.exe install the update and reopen it."""
+    """Close this hub (scripts stop) and let BotScape.exe install the update and reopen it (a git clone: git pull)."""
+    if git_clone():
+        return git_update_now()
     if not player_install():
         return "This is a development folder: it doesn't update itself."
     stub = ROOT / "BotScape.exe"
@@ -2206,7 +2262,7 @@ def main():
         # Opened from the Zazuosu launcher: sign in as the player's zazuosu account first.
         zazuosu_sign_in()
     threading.Thread(target=WORLD.loop, daemon=True).start()
-    if player_install():
+    if player_install() or git_clone():
         threading.Thread(target=update_check_loop, daemon=True).start()
     remove_old_client_bat()
     threading.Thread(target=reopen_game_clients, daemon=True).start()
