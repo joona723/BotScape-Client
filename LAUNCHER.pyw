@@ -154,6 +154,16 @@ def website(method, path, body=None, timeout=10):
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read() or b"{}")
     except urllib.error.HTTPError as e:
+        if e.code == 401:
+            # The zazuosu sign-in is gone (live server 2026-11-14: the move to Ubuntu brought the accounts from before
+            # this sign-in, so News and Forum posts failed with no way to sign in again). Forget it: the page then
+            # offers the zazuosu login.
+            ZAZUOSU["token"] = None
+            try:
+                ZAZUOSU_SESSION_FILE.unlink()
+            except OSError:
+                pass
+            return {"error": "Your zazuosu sign-in has expired: sign in again to post.", "status": 401}
         try:
             return json.loads(e.read() or b"{}") | {"status": e.code}
         except ValueError:
@@ -436,6 +446,11 @@ def zazuosu_login(body):
     ZAZUOSU_SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
     ZAZUOSU_SESSION_FILE.write_text(token, encoding="utf-8")
     ZAZUOSU.update(token=token, retry_at=0)
+    if body.get("websiteOnly"):
+        # Only the website's sign-in (News and Forum posts): the game character and its password stay as they are.
+        NEWS["at"] = 0.0
+        threading.Thread(target=load_profile, daemon=True).start()
+        return None
     if not zazuosu_sign_in():
         # Signed in to zazuosu; the character connects once the Bot Scape server answers.
         return None

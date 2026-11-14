@@ -606,6 +606,27 @@
   .setup label { display: block; font-size: 12px; color: var(--muted); margin: 14px 0 6px; }
   .setup input { width: 100%; }
   .error-text { color: #f0938d; font-size: 13px; min-height: 18px; margin-top: 10px; }
+  /* User-requested: the News on the sign-in screen, as on the website's (the two newest, the newest open). */
+  /* As on the website: the sign-in card, and the News in its own wide box under it. */
+  #signin.show { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 22px;
+    overflow-y: auto; padding: max(24px, 8vh) 16px 24px; }
+  #signin .box { flex: none; }
+  #signin .btn[hidden] { display: none; }   /* .btn's display beat the hidden attribute */
+  .si-newsbox { display: grid; gap: 8px; min-width: 0; width: 460px; max-width: 100%; flex: none; }   /* as wide as the sign-in card */
+  .si-newsbox h2 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  #siNewsList { display: grid; gap: 8px; min-width: 0; }
+  .si-news { min-width: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.02); }
+  .si-news[class*="lvl-"] { border-color: color-mix(in srgb, var(--lvl) 55%, transparent); }
+  .si-news summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 8px 12px; min-width: 0; }
+  .si-news summary::-webkit-details-marker { display: none; }
+  .si-news summary .news-av { width: 22px; height: 22px; font-size: 11px; flex: none; }
+  .si-news .t { font-weight: 600; color: var(--text); white-space: nowrap; }
+  .si-news .m { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .si-news .pv { color: var(--muted); font-size: 12.5px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .si-news[open] .pv { visibility: hidden; }
+  .si-news .chev { color: var(--muted); transition: transform .15s; flex: none; }
+  .si-news[open] .chev { transform: rotate(90deg); }
+  .si-news .news-body { padding: 0 14px 12px 44px; font-size: 13.5px; max-height: 320px; overflow: auto; }
   .script .opts { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 10px; }
   .script .opt { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); cursor: pointer; }
   .script .opt input { accent-color: var(--gold); margin: 0; cursor: pointer; }
@@ -796,8 +817,10 @@
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn gold" id="signinGo" style="flex:1;justify-content:center">Log in</button>
       <button class="btn" id="signinRegister">Create account</button>
+      <button class="btn" id="signinCancel" hidden>Cancel</button>
     </div>
   </div>
+  <section class="si-newsbox" id="siNewsBox" hidden><h2>News</h2><div id="siNewsList"></div></section>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -907,7 +930,7 @@ function renderForum() {
       <div class="count"><b>${Number(t.replies)}</b>${t.replies === 1 ? "reply" : "replies"}</div></div>`).join("");
   $("forum").innerHTML = `<div class="forum-top"><h2>Forum</h2><span class="hint">${forum.threads.length} thread${forum.threads.length === 1 ? "" : "s"}</span>
       <span class="grow"></span>${me ? (forum.writing ? "" : `<button class="btn gold small" onclick="forum.writing=true;renderForum()">+ New thread</button>`)
-        : `<span class="hint">Sign in to post</span>`}</div>${form}
+        : `<button class="btn small" onclick="websiteSignIn()">Sign in to post</button>`}</div>${form}
     <div class="forum-list">${rows || `<div class="hint">No threads yet. Start the first one!</div>`}</div>`;
 }
 function renderForumThread() {
@@ -926,7 +949,7 @@ function renderForumThread() {
   const box = me ? `<div class="forum-form" style="margin:4px 0 0">
       <textarea id="forumReply" maxlength="2000" placeholder="Write a reply…"></textarea>
       <div class="row"><span class="hint">Plain text.</span><button class="btn gold small" onclick="forumReply(${Number(t.id)})">Reply</button></div></div>`
-    : `<div class="hint">Sign in to reply.</div>`;
+    : `<button class="btn small" onclick="websiteSignIn()">Sign in to reply</button>`;
   $("forum").innerHTML = `<div class="forum-top"><button class="btn small" onclick="forum.open=null;forum.thread=null;loadForum()">‹ All threads</button>
       <span class="hint">${(t.replies || []).length} replies</span></div>
     <div class="forum-thread">${op}${replies}${box}</div>`;
@@ -1033,6 +1056,7 @@ async function post(action, body = {}) {
     const res = await fetch("/api/" + action, { method: "POST", body: JSON.stringify(body) });
     const out = await res.json().catch(() => ({}));
     if (out.error) toast(out.error);
+    if (out.error && /sign-in has expired/i.test(out.error)) websiteSignIn("Your zazuosu sign-in has expired. Sign in again to post.");
     setTimeout(() => refresh().finally(() => unbusy(busy)), 300);
     return out;
   } catch (e) {
@@ -2140,7 +2164,8 @@ function renderHeader() {
   $("zazuBanner").style.display = $("zazuBanner").textContent ? "block" : "none";
   // Players sign in with their zazuosu account; the PC that hosts a server uses a local account.
   const needsSignIn = !data.embedded && !data.host && data.signedIn === false && !data.zazuosuPending;
-  $("signin").classList.toggle("show", needsSignIn);
+  $("signin").classList.toggle("show", needsSignIn || websiteOnly);
+  if ((needsSignIn || websiteOnly) && !siNewsLoaded) loadSignInNews();
   $("setup").classList.toggle("show", !data.embedded && !!data.host && data.hasAccount === false);
   const frame = $("mapFrame");
   const mapSrc = data.mapUrl && data.mapUrl + (data.main ? (data.mapUrl.includes("?") ? "&" : "?") + "me=" + encodeURIComponent(data.main) : "");
@@ -2204,15 +2229,55 @@ $("updateBtn").onclick = () => {
   $("updateBtn").textContent = "Updating…"; $("updateBtn").disabled = true;
   post("update").then(r => { if (!r.ok) { toast(r.error || "Couldn't update"); $("updateBtn").disabled = false; } });
 };
+// The website's own sign-in (News and Forum posts): live server 2026-11-14, an expired zazuosu sign-in made every post
+// fail and the hub had no way to sign in again. This opens the zazuosu login just for that; the game login stays.
+// The sign-in screen's News, like the website's: the two newest posts, the newest one open.
+var siNewsLoaded = false;
+async function loadSignInNews() {
+  siNewsLoaded = true;
+  try {
+    const posts = ((await (await fetch("/api/news", { cache: "no-store" })).json()).posts || []).slice(0, 2);
+    if (!posts.length) return;
+    $("siNewsList").innerHTML = posts.map((p, i) => {
+      const key = String(p.author || "?").toLowerCase();
+      const av = `<span class="news-av" style="background:${colorFor(key)}">${esc(key[0].toUpperCase())}<img src="https://zazuosu.com/avatars/${encodeURIComponent(key)}.jpg" alt="" onerror="this.remove()"></span>`;
+      const date = new Date(p.at * 1000).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+      const preview = String(p.body).replace(/\s+/g, " ").trim();
+      return `<details class="si-news${newsLevelClass(p)}" ${i === 0 ? "open" : ""}><summary>${av}<span class="t">${newsBadge(p)}${esc(p.title)}</span>
+        <span class="m">${p.author ? `${p.admin !== false ? ADMIN_CROWN : ""}${esc(p.author)} · ` : ""}${date}</span>
+        <span class="pv">${esc(preview)}</span><span class="chev">›</span></summary>
+        <div class="news-body">${String(p.body).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join("")}</div></details>`;
+    }).join("");
+    $("siNewsBox").hidden = false;
+  } catch (e) { siNewsLoaded = false; /* the news is a nice extra: try again next time */ }
+}
+var websiteOnly = false;   // var: refresh() reads it and can run before this line
+function websiteSignIn(why) {
+  websiteOnly = true;
+  $("signin").querySelector("h2").textContent = "Sign in to post";
+  $("signin").querySelector(".hint").textContent = why || "Your zazuosu account (the same as on zazuosu.com): News and Forum posts are made with it.";
+  $("signinRegister").hidden = true; $("signinCancel").hidden = false;
+  $("signinError").textContent = "";
+  $("signin").classList.add("show");
+  $("signinName").focus();
+}
+function websiteSignInDone() {
+  websiteOnly = false;
+  $("signin").querySelector("h2").textContent = "Sign in to Bot Scape";
+  $("signin").querySelector(".hint").textContent = "Use your zazuosu account (the same as on zazuosu.com and in the Zazuosu launcher). Your character is named after it.";
+  $("signinRegister").hidden = false; $("signinCancel").hidden = true;
+}
+$("signinCancel").onclick = () => { $("signin").classList.remove("show"); websiteSignInDone(); };
 async function zazuosuSignIn(register) {
   $("signinError").textContent = "";
   $("signinGo").disabled = $("signinRegister").disabled = true;
-  const r = await post("zazuosu-login", { username: $("signinName").value, password: $("signinPass").value, register });
+  const r = await post("zazuosu-login", { username: $("signinName").value, password: $("signinPass").value, register, websiteOnly });
   $("signinGo").disabled = $("signinRegister").disabled = false;
   if (!r.ok) { $("signinError").textContent = r.error || "Couldn't sign in."; return; }
   $("signinPass").value = "";
   $("signin").classList.remove("show");
-  toast(register ? "Account created: welcome to Bot Scape!" : "Signed in");
+  toast(websiteOnly ? "Signed in: you can post now" : register ? "Account created: welcome to Bot Scape!" : "Signed in");
+  if (websiteOnly) { websiteSignInDone(); if (typeof loadForum === "function") loadForum(); }
   refresh();
 }
 $("signinGo").onclick = () => zazuosuSignIn(false);

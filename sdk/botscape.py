@@ -505,12 +505,18 @@ class Bot:
             if level == 0 or (target_level is not None and level <= target_level):
                 break
             x, z, _ = self.position
-            stairs = [l for l in self.find_locs(re.compile(r"(?i)staircase|stairs|ladder")) if first_op(l, downs)]
+            # simba's group 2026-11-14: left on Captain Tock's deck at Corsair Cove (floor 1) after The Corsair Curse,
+            # the bot climbed the ship's ladder into the hold again and again ("No route" for Herblore, Hunter,
+            # Construction). A ship's way ashore is its gangplank.
+            planks = [l for l in self.find_locs(re.compile(r"(?i)^gangplank$")) if first_op(l, ("Cross",))
+                      and l.get("level", level) == level
+                      and abs(l["x"] - x) + abs(l["z"] - z) <= 12]
+            stairs = planks or [l for l in self.find_locs(re.compile(r"(?i)staircase|stairs|ladder")) if first_op(l, downs)]
             if not stairs:
                 break
             near = min(stairs, key=lambda l: abs(l["x"] - x) + abs(l["z"] - z))
             self.log(f"Travel: climbing down the {str(near.get('name', 'stairs')).lower()} (floor {level})")
-            self.interact_loc(near, first_op(near, downs))
+            self.interact_loc(near, first_op(near, ("Cross",) if planks else downs))
             for _ in range(15):
                 self.wait_ticks(1)
                 if self.position[2] != level:
@@ -1013,6 +1019,12 @@ def stop_stray_brain():
     if os.name == "nt":
         subprocess.run(["taskkill", "/T", "/F", "/PID", str(parent)], capture_output=True,
                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    else:
+        import signal
+        try:
+            os.kill(parent, signal.SIGKILL)
+        except OSError:
+            pass
     raise SystemExit(3)
 
 
