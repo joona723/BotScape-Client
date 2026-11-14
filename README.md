@@ -53,6 +53,7 @@ After 6 wrong passwords from one address a character's login there waits 15 minu
 
 ## Building
 
-- `BotScape.exe`: `dotnet build launcher/stub/BotScape.csproj -c Release` (.NET Framework 4.8)
+- `BotScape.exe`: double-click `build-to-exe.bat` (needs the free .NET SDK), or
+  `dotnet build launcher/stub/BotScape.csproj -c Release` (.NET Framework 4.8)
 - The plugin: `javac --release 21` against the RuneLite jars `fetch_runelite.py` downloads, then jar it
   together with `client-plugin/res`

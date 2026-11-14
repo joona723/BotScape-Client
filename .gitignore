@@ -18,6 +18,7 @@ launcher/settings.json
 launcher/zazuosu-session.txt
 launcher/stub/bin/
 launcher/stub/obj/
+build/
 tools/
 runtime/
 bots/
