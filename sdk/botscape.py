@@ -420,9 +420,10 @@ class Bot:
         self.wait_ticks(1)
         return bool(self.player.get("running"))
 
-    def travel(self, x, z, level=None, tolerance=1, timeout=600):
+    def travel(self, x, z, level=None, tolerance=1, timeout=600, teleport=True):
         """Go anywhere in the world: the server plans the route (doors, stairs, ladders, caves)
-        and walks it. Returns True on arrival, False if there's no route or it gave up."""
+        and walks it. Returns True on arrival, False if there's no route or it gave up. teleport=False: never Home
+        Teleport out of a "No route" (inside a quest area, where it throws the progress away)."""
         try:
             self.run_on()   # user-requested: run whenever there's energy
         except GatewayError:
@@ -461,7 +462,7 @@ class Bot:
                 # Places the planner can't leave by itself: the rune essence mine and some upstairs rooms
                 # (server script-problems log 2026-11-10: "No route to 3013, 3355" from Falador castle's floor 2
                 # and from the essence mine, again and again, in Construction, Farming, Mining...).
-                if not _unstuck and (self._unstick(level) or (str(message).startswith("No route") and self._home_teleport())):
+                if not _unstuck and (self._unstick(level) or (teleport and str(message).startswith("No route") and self._home_teleport())):
                     _unstuck = True
                     previous = trip.get("id")
                     self.act(action)

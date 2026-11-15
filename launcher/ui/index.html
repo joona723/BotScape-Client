@@ -1103,7 +1103,7 @@ function renderTeam() {
   // Only members already unlocked by the group's total level (a new member every 100 levels).
   const chars = (data.characters || []).filter(c => c.unlocked);
   if (!selected || !chars.find(c => c.name === selected)) selected = data.main;
-  $("teamCount").textContent = `${chars.filter(c => c.status === "online").length} online`;
+  $("teamCount").textContent = `${chars.filter(c => c.status === "online").length}/${chars.length} online`;
   // User-requested: nothing running and an AIO script exists -> the button runs AIO on everyone.
   const anyRunning = chars.some(c => c.script || c.remote);
   const aio = (data.scripts || []).find(s => s.name === "AIO");

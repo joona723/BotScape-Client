@@ -88,7 +88,6 @@ def configure_script():
 # Fishing, Cooking, Runecrafting, Herblore and Crafting are on the server now.)
 SCRIPT_GAPS = {
     "Jewellery": "Jewellery crafting and enchanting",
-    "Collect": "Snape grass spawns at the script's collection sites",
     "AutoQuester": "Quest routes and quest progress support",
     "Magic": "Spell targeting through the gateway",
 }
