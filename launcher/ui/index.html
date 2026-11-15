@@ -2080,7 +2080,7 @@ function renderHiscores() {
     $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Group</th><th class="num">Members</th><th class="num">Wealth</th></tr>`
       + rows.map((g, i) => `<tr class="${g.key === mine ? "me" : ""}"><td class="rank">${i + 1}</td><td>${esc(g.name)}</td>
         <td class="num">${g.members}</td><td class="num" title="${g.value.toLocaleString()} gp">${gpShort(g.value)}</td></tr>`).join("")
-      + `</table>` + (rows.length ? `<div class="hint" style="margin-top:8px">Everything the group owns (backpacks, gear and banks) at Grand Exchange guide prices.</div>`
+      + `</table>` + (rows.length ? `<div class="hint" style="margin-top:8px">Everything the group owns: backpacks, gear and banks.</div>`
         : `<div class="empty"><h3>${hsData.wealth ? "No wealth yet" : "The server doesn't rank wealth yet"}</h3></div>`);
   } else if (hsSkill === "@log") {
     $("hiscores").innerHTML = counted(hsData.collection || [], "Collection Log", "No one has logged an item yet");
