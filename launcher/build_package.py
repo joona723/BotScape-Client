@@ -41,6 +41,7 @@ CONTENT = [
     ("LAUNCHER.pyw", "LAUNCHER.pyw"),
     ("launcher/ui", "launcher/ui"),
     ("launcher/fetch_runelite.py", "launcher/fetch_runelite.py"),
+    ("launcher/server_bots.py", "launcher/server_bots.py"),
     ("launcher/hub-window.ps1", "launcher/hub-window.ps1"),
     ("launcher/HubWindow.cs", "launcher/HubWindow.cs"),
     ("launcher/package/Open-RuneLite.bat", "Open-RuneLite.bat"),

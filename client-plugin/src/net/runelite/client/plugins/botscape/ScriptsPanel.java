@@ -421,6 +421,10 @@ class ScriptsPanel extends PluginPanel
 	// --- script cards ------------------------------------------------------------------------
 
 	private final List<String[]> scripts = new ArrayList<>();
+	/** Bot Scape scripts with a server-side (.kt) version: they run inside the game server, like the hub's and the website's. */
+	private final java.util.Set<String> serverScripts = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	/** Characters whose server-side script handed over to Python (exit 9): Python until then (like the hub). */
+	private final Map<String, Long> pythonOnly = new java.util.concurrent.ConcurrentHashMap<>();
 
 	private void loadScripts()
 	{
@@ -429,6 +433,34 @@ class ScriptsPanel extends PluginPanel
 		list(packDir, "pack");
 		list(dir, "mine");
 		paintCards();
+		new Thread(() ->
+		{
+			try
+			{
+				List<Object> names = Gateway.list(Gateway.map(Gateway.get("/serverbots")).get("scripts"));
+				java.util.Set<String> now = new java.util.HashSet<>();
+				names.forEach(n -> now.add(Gateway.str(n)));
+				if (!now.equals(serverScripts))
+				{
+					serverScripts.clear();
+					serverScripts.addAll(now);
+					SwingUtilities.invokeLater(this::paintCards);
+				}
+			}
+			catch (Exception ignored)
+			{
+				// An older server without the list: every script runs as Python, as before.
+			}
+		}, "botscape-serverbots").start();
+	}
+
+	/** A Bot Scape script (not one of yours) with a server-side version, and this character isn't handed back to Python. */
+	private boolean onServer(String who, String script)
+	{
+		Path path = Path.of(script);
+		String stem = path.getFileName().toString().replace(".py", "");
+		return path.getParent() != null && path.getParent().toAbsolutePath().normalize().equals(packDir.toAbsolutePath().normalize())
+			&& serverScripts.contains(stem) && pythonOnly.getOrDefault(who.toLowerCase(), 0L) < System.currentTimeMillis();
 	}
 
 	/** Adds {file name, description, source, full path} for each script in a folder. */
@@ -630,7 +662,17 @@ class ScriptsPanel extends PluginPanel
 		JPanel text = new JPanel();
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
 		text.setOpaque(false);
-		text.add(BotScapeUi.label(name.replace(".py", ""), TEXT, FontManager.getRunescapeBoldFont()));
+		// User-requested: which scripts run inside the game server (.kt) and which are Python on this PC.
+		JPanel title = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+		title.setOpaque(false);
+		title.setAlignmentX(Component.LEFT_ALIGNMENT);
+		title.add(BotScapeUi.label(name.replace(".py", ""), TEXT, FontManager.getRunescapeBoldFont()));
+		boolean server = "pack".equals(script[2]) && serverScripts.contains(name.replace(".py", ""));
+		JLabel kind = BotScapeUi.small(server ? "  Server" : "  Python", server ? new Color(0x5fb3d3) : MUTED);
+		kind.setToolTipText(server ? "Runs inside the game server (its .kt version): nothing runs on this PC"
+			: "Runs as a Python script on this PC");
+		title.add(kind);
+		text.add(title);
 		if (isRunning)
 		{
 			long secs = (System.currentTimeMillis() - started) / 1000;
@@ -720,12 +762,17 @@ class ScriptsPanel extends PluginPanel
 		pb.environment().put("RS_BOT", who.toLowerCase());
 		pb.environment().put("PYTHONIOENCODING", "utf-8");
 		String label = Path.of(script).getFileName().toString().replace(".py", "");
+		boolean server = onServer(who, script);
 		try
 		{
-			Process proc = pb.start();
+			// User-requested (2026-11-18): like the hub and the website, a Bot Scape script with a server-side version runs
+			// inside the game server; your own scripts and the rest run here as Python.
+			Process proc = server
+				? new ServerProcess(who, label, data.main(), password(), label.equals("AIO") ? aioSettings(Path.of(script)) : List.of())
+				: pb.start();
 			running.put(who, new Running(script, proc));
 			remember(who, script);
-			say(who, label + " started", GOLD);
+			say(who, label + " started" + (server ? " (server-side)" : ""), GOLD);
 			Thread reader = new Thread(() ->
 			{
 				boolean lost = false;
@@ -753,6 +800,20 @@ class ScriptsPanel extends PluginPanel
 				catch (InterruptedException e)
 				{
 					code = 0;
+				}
+				// A server-side script that reached something it can't do yet hands over: the Python script carries
+				// on here for the next hour (like the hub).
+				Running mine = running.get(who);
+				if (proc instanceof ServerProcess && code == ServerProcess.HANDS_OVER && mine != null && mine.process == proc)
+				{
+					running.remove(who);
+					pythonOnly.put(who.toLowerCase(), System.currentTimeMillis() + 3_600_000L);
+					SwingUtilities.invokeLater(() ->
+					{
+						say(who, label + ": the server-side script handed over; running the Python script", GOLD);
+						run(who, script);
+					});
+					return;
 				}
 				// Not stopped by hand (Stop takes it out of `running` first), ended with an error and the
 				// server went away: carry on once it's back (user-requested, for server restarts).
@@ -782,9 +843,67 @@ class ScriptsPanel extends PluginPanel
 		}
 		catch (IOException e)
 		{
-			say(who, "Could not start Python: " + e.getMessage(), RED);
+			say(who, (server ? "Couldn't start " + label + " on the server: " : "Could not start Python: ") + e.getMessage(), RED);
 		}
 		paintCards();
+	}
+
+	/** The group's password (bots/<main>/bot.env): the server logs the character in with it when it isn't online. */
+	private String password()
+	{
+		try
+		{
+			for (String line : Files.readAllLines(dir.resolve("bot.env"), StandardCharsets.UTF_8))
+			{
+				if (line.startsWith("PASSWORD="))
+				{
+					return line.substring(9).strip();
+				}
+			}
+		}
+		catch (IOException ignored)
+		{
+			// No bot.env: the character is online anyway (this client plays it).
+		}
+		return "";
+	}
+
+	private static final List<String> AIO_SKILLS = List.of("Attack", "Strength", "Defence", "Hitpoints", "Ranged", "Magic", "Prayer",
+		"Thieving", "Woodcutting", "Firemaking", "Fletching", "Fishing", "Cooking", "Mining", "Smithing", "Agility", "Runecraft",
+		"Farming", "Hunter", "Crafting", "Herblore", "Slayer", "Construction");
+
+	/**
+	 * AIO.py's goals_from_options() for the server-side brain, which can't read this PC: the Run window's choices
+	 * (launcher/server_bots.py aio_settings, the same for the hub). ["--settings", json].
+	 */
+	private static List<String> aioSettings(Path script)
+	{
+		Map<String, Object> o = ScriptOptions.chosen(script);
+		if (o.isEmpty())
+		{
+			return List.of();
+		}
+		Map<String, Object> goals = new java.util.LinkedHashMap<>();
+		for (String skill : AIO_SKILLS)
+		{
+			int goal = Gateway.num(o.get(skill.toLowerCase()));
+			if (goal > 0)
+			{
+				goals.put(skill, Math.max(1, Math.min(99, goal)));
+			}
+		}
+		int block = Gateway.num(o.get("block"));
+		int supplies = Gateway.num(o.get("supplies"));
+		Map<String, Object> settings = new java.util.LinkedHashMap<>();
+		settings.put("goals", goals);
+		settings.put("mode", Boolean.TRUE.equals(o.get("balanced")) ? "balanced" : "fastest");
+		settings.put("block", Math.max(5, Math.min(180, block == 0 ? 60 : block)));
+		settings.put("supplies", Math.max(1, Math.min(180, supplies == 0 ? 30 : supplies)));
+		settings.put("upgrades", !Boolean.FALSE.equals(o.get("upgrades")));
+		settings.put("money", !Boolean.FALSE.equals(o.get("money")));
+		settings.put("quests", !Boolean.FALSE.equals(o.get("quests")));
+		settings.put("minigames", Boolean.TRUE.equals(o.get("minigames")));
+		return List.of("--settings", Json.write(settings));
 	}
 
 	/** Scrolls up and down only: always as wide as the sidebar (cards wrap instead of being cut off). */

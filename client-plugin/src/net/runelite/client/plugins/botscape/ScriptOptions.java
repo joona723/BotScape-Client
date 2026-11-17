@@ -84,6 +84,18 @@ final class ScriptOptions
 		return new LinkedHashMap<>();
 	}
 
+	/** The script's options with the player's saved choices (the declared defaults otherwise). */
+	static Map<String, Object> chosen(Path script)
+	{
+		Map<String, Object> saved = Gateway.map(readAll(script.getParent()).get(script.getFileName().toString()));
+		Map<String, Object> out = new LinkedHashMap<>();
+		for (Option o : declared(script))
+		{
+			out.put(o.key(), saved.getOrDefault(o.key(), o.fallback()));
+		}
+		return out;
+	}
+
 	/** Asks for the script's options; false if the player cancelled (then don't run it). */
 	@SuppressWarnings("unchecked")
 	static boolean ask(Component parent, Path script)

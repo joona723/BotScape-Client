@@ -658,22 +658,20 @@ class Bot:
         self.click("bankside:items", op=op, sub=item["slot"], obj=item["id"])
 
     def withdraw(self, pattern, amount=1):
-        """Withdraw from the open bank: 1, 5, 10, "all", or any other count (made of 10s, 5s and 1s;
-        a stack like coins of 50 or more is withdrawn whole)."""
+        """Withdraw from the open bank: 1, 5, 10, "all", or any other count with Withdraw-X (user-requested
+        2026-11-16: simba took Dragon Slayer's 7,774 coins 10 at a time, ~15 minutes at the bank)."""
         match = _matcher(pattern)
         item = next((i for i in self.bank() if match(i["name"])), None)
         if item is None:
             raise GatewayError(f"No {pattern} in the bank")
         ops = {1: 2, 5: 3, 10: 4, "all": 7}
         if amount not in ops:
-            if amount >= 50:
+            if amount >= item.get("count", 1):
                 amount = "all"
             else:
-                for size in (10, 5, 1):
-                    while amount >= size:
-                        self.click("bankmain:items", op=ops[size], sub=item["slot"], obj=item["id"])
-                        self.wait_ticks(1)
-                        amount -= size
+                self.click("bankmain:items", op=6, sub=item["slot"], obj=item["id"])   # Withdraw-X
+                self.enter_count(amount)
+                self.wait_ticks(1)
                 return
         self.click("bankmain:items", op=ops[amount], sub=item["slot"], obj=item["id"])
         self.wait_ticks(1)

@@ -1059,6 +1059,17 @@ def buy_vote(body):
     return None
 
 
+def _server_bots():
+    """launcher/server_bots.py (ServerProc), or None on an install without it."""
+    try:
+        if str(ROOT / "launcher") not in sys.path:
+            sys.path.insert(0, str(ROOT / "launcher"))
+        import server_bots
+        return server_bots
+    except ImportError:
+        return None
+
+
 def script_path(script):
     """'botscape/Mining.py' or 'mine/MyScript.py' (a bare file name means the player's own)."""
     source, _, name = script.rpartition("/")
@@ -1211,9 +1222,27 @@ class Runner:
         auth_headers()
         if AUTH["token"]:
             env["BOT_TOKEN"] = AUTH["token"]
-        proc = subprocess.Popen([python, "-u", str(path), who, "--main", SETTINGS["main"]], cwd=bot_dir(),
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
-                                errors="replace", env=env, creationflags=NO_WINDOW)
+        server_bots = _server_bots()
+        python_only = getattr(self, "python_only", {}).get(who, 0) > time.time()
+        proc = None
+        # Only admins and simba's group get the server-side scripts for now (the server says: server_bots.allowed).
+        if (script.startswith("botscape/") and server_bots and not python_only
+                and server_bots.enabled(path.stem, gateway=gateway_url(), token=AUTH["token"])):
+            # User-requested (2026-11-17), like the website: a Bot Scape script with a server-side version runs inside
+            # the game server, no Python process here (the player's own scripts always run here).
+            try:
+                # The AIO brain on the server can't read this PC: the Run window's choices go along (server_bots.aio_settings).
+                proc = server_bots.ServerProc(gateway_url(), who, path.stem, SETTINGS["main"],
+                                              read_env().get("PASSWORD") or "", AUTH["token"],
+                                              args=server_bots.aio_settings(path) if path.stem == "AIO" else ())
+            except RuntimeError as e:
+                # The server said no (not for this group yet, or it couldn't start it): the Python script runs instead.
+                self.add(who, f"{path.stem}: not server-side ({e}); running the Python script", "start")
+                proc = None
+        if proc is None:
+            proc = subprocess.Popen([python, "-u", str(path), who, "--main", SETTINGS["main"]], cwd=bot_dir(),
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                                    errors="replace", env=env, creationflags=NO_WINDOW)
         with self.lock:
             self.held.discard(who)
             self.procs[who] = (path.stem, proc, time.time())
@@ -1231,6 +1260,21 @@ class Runner:
             lost = lost or bool(SERVER_GONE.search(line))
             self.add(who, line, kind)
         code = proc.wait()
+        if getattr(proc, "server", False) and code == 9:
+            # The server-side script reached something it can't do yet: the Python script carries on, as the website
+            # does (Python for this character for the next hour).
+            if not hasattr(self, "python_only"):
+                self.python_only = {}
+            self.python_only[who] = time.time() + 3600
+            again = self.scripts.get(who)
+            with self.lock:
+                current = self.procs.get(who)
+                if current is not None and current[1] is proc:
+                    del self.procs[who]
+            if again:
+                self.add(who, f"{script}: the server-side script handed over; running the Python script", "start")
+                threading.Thread(target=self.run, args=(who, again), daemon=True).start()
+                return
         self.add(who, f"{script} stopped" + (f" (exit {code})" if code else ""), "stop")
         with self.lock:
             current = self.procs.get(who)
@@ -1292,8 +1336,11 @@ class Runner:
             self.resume.pop(who, None)
             entry = self.procs.pop(who, None)
         if entry and entry[1].poll() is None:
-            subprocess.run(["taskkill", "/PID", str(entry[1].pid), "/T", "/F"], capture_output=True,
-                           creationflags=NO_WINDOW)
+            if getattr(entry[1], "server", False):
+                entry[1].terminate()   # a server-side bot: the game server stops it (its pid is 0)
+            else:
+                subprocess.run(["taskkill", "/PID", str(entry[1].pid), "/T", "/F"], capture_output=True,
+                               creationflags=NO_WINDOW)
             # Hand the character back: a server-side bot logs out, an attached one lets go.
             threading.Thread(target=gw, args=("POST", f"/bots/{urllib.parse.quote(who)}/logout"),
                              daemon=True).start()
