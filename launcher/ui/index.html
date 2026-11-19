@@ -579,6 +579,36 @@
   .hs .rank { color: var(--muted); width: 60px; font-variant-numeric: tabular-nums; }
   .hs .num { text-align: right; font-variant-numeric: tabular-nums; }
   .hs .medal { font-weight: 700; color: var(--gold); }
+  /* timeline (user-requested 2026-11-19; the web page uses these too) */
+  .tl-bar { flex-wrap: wrap; gap: 10px; }
+  .tl-scope, .tl-types { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tl-scope button, .tl-types button { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .tl-scope button.on, .tl-types button.on { background: #221a0c; border-color: var(--gold-dim); color: var(--gold); }
+  .tl-scope button:disabled { opacity: .45; cursor: default; }
+  .tl-day { margin: 18px 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .tl-list { max-width: 900px; border-left: 2px solid var(--border); margin-left: 12px; }
+  .tl-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 0; margin-left: -13px; }
+  .tl-row:hover { background: var(--card); }
+  .tl-ic { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; background: var(--bg, #0f1216); border-radius: 50%;
+    padding: 2px; flex: none; }
+  .tl-row.big .tl-ic { box-shadow: 0 0 0 2px var(--gold-dim); }
+  .tl-row.big .tl-text { color: var(--text); font-weight: 600; }
+  .tl-text { flex: 1; min-width: 0; color: var(--muted); }
+  .tl-who, .tl-strip a[data-player] { color: var(--text); font-weight: 600; cursor: pointer; }
+  .tl-who:hover, .tl-strip a[data-player]:hover, .tl-link:hover { color: var(--gold); text-decoration: underline; }
+  .tl-link { cursor: pointer; }
+  .tl-group { margin-left: 8px; font-size: 12px; }
+  .tl-time { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; }
+  .tl-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 6px; }
+  .tl-head b { font-size: 16px; }
+  .tl-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 900px; margin: 0 0 12px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--card); font-size: 12.5px; }
+  .tl-strip-head { color: var(--gold); font-weight: 600; margin-right: 4px; }
+  .tl-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
+  .tl-pill img { width: 16px; height: 16px; object-fit: contain; image-rendering: pixelated; }
+  .tl-all { margin-left: auto; color: var(--gold); cursor: pointer; }
+  @media (max-width: 600px) { .tl-group { display: none; } .tl-row { align-items: flex-start; } }
   iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
 
   /* embedded in the Zazuosu launcher */
@@ -733,6 +763,7 @@
         <button class="tab" data-view="skills"><img class="tab-icon" src="/character-16.png" alt="">Character</button>
         <button class="tab" data-view="bank"><img class="tab-icon" src="/group-bank-16.png" onerror="this.src='/bank-16.png'" alt="">Group bank <span class="count" id="bankCount"></span></button>
         <button class="tab" data-view="hiscores"><img class="tab-icon" src="/hiscores-16.png" alt="">Highscores</button>
+        <button class="tab" data-view="timeline"><img class="tab-icon" src="/hiscores-16.png" alt="">Timeline</button>
         <button class="tab" data-view="output"><img class="tab-icon" src="/output-16.png" alt="">Output</button>
         <button class="tab" data-view="news" style="margin-left:auto"><img class="tab-icon" src="/output-16.png" alt="">News</button>
         <button class="tab" data-view="forum"><img class="tab-icon" src="/output-16.png" alt="">Forum</button>
@@ -760,7 +791,12 @@
           <div class="skill-picker" id="hsSkills"></div>
           <div class="hs-activities skill-picker" id="hsActivities"></div>
         </div></div>
+        <div id="hsRecent"></div>
         <div id="hiscores"></div>
+      </section>
+      <section class="view" id="view-timeline">
+        <div class="toolbar tl-bar"><div class="tl-scope" id="tlScope"></div><div class="tl-types" id="tlTypes"></div></div>
+        <div id="timeline"></div>
       </section>
     </main>
   </div>
@@ -2016,8 +2052,12 @@ let hsData = null, hsSkill = null, hsLoaded = 0, hsGroup = null;
 async function loadHiscores() {
   if (Date.now() - hsLoaded < 15000 && hsData) return renderHiscores();
   try { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); } catch (e) { hsData = { error: "Server offline" }; }
+  tlRecent("hsRecent", "", 6);
   renderHiscores();
 }
+async function loadHiscoresQuiet() { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); }
+async function tlFetch(query) { return await (await fetch("/api/timeline?" + query)).json(); }
+function tlMe() { return (data && data.main) || ""; }
 // User-requested: "Simba's group", never "simba's group" (group keys are lowercase account names).
 function capName(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
 // User-requested: group leaders' zazuosu profile pictures on the hiscores (members aren't zazuosu
@@ -2094,6 +2134,145 @@ function renderHiscores() {
         <td class="num">${r.level}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")
       + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No one has trained ${esc(hsSkill)} yet</h3></div>`);
   }
+  hsJourneyLinks();
+  if (hsSkill === "@groups" && hsGroup) tlRecent("hsGroupRecent", "group=" + encodeURIComponent(hsGroup), 3);
+}
+
+// --- timeline -----------------------------------------------------------------------------------
+// User-requested 2026-11-19: each player's journey (every level, quests, collection log, boss kills, clues), the
+// whole server's or one group's or one player's, newest first. The same on the web page and in the hub.
+const TL_TYPES = [["level", "Levels", "level,total,combat"], ["quest", "Quests", "quest"], ["collection", "Collection log", "collection"],
+  ["kc", "Bosses", "kc"], ["clue", "Clues", "clue"]];
+let tl = { scope: "all", player: null, types: new Set(), events: [], more: false, loading: false, error: "", at: 0, key: "" };
+function tlParams(before) {
+  const p = new URLSearchParams({ limit: "60" });
+  if (tl.player) p.set("player", tl.player);
+  else if (tl.scope === "group" && tlMe()) p.set("group", tlGroupKey());
+  if (tl.types.size) p.set("types", [...tl.types].map(t => TL_TYPES.find(x => x[0] === t)[2]).join(",") + ",journey");
+  if (before) p.set("before", String(before));
+  return p.toString();
+}
+// The signed-in player's group: its main's login (lowercase), as the server keys groups.
+function tlGroupKey() {
+  const me = tlMe().toLowerCase();
+  const row = (hsData && hsData.overall || []).find(r => r.name.toLowerCase() === me);
+  return ((row && row.group) || me).toLowerCase();
+}
+async function loadTimeline(more) {
+  const key = tlParams();
+  if (!more && key === tl.key && Date.now() - tl.at < 15000) return renderTimeline();
+  if (tl.loading) return;
+  tl.loading = true;
+  if (!more && key !== tl.key) { tl.events = []; renderTimeline(); }
+  try {
+    const before = more && tl.events.length ? tl.events[tl.events.length - 1].t : null;
+    const r = await tlFetch(tlParams(before));
+    if (r.error) throw new Error(r.error);
+    tl.events = more ? tl.events.concat(r.events || []) : (r.events || []);
+    tl.more = !!r.more; tl.error = ""; tl.key = key; tl.at = Date.now();
+  } catch (e) { tl.error = e.message || "Server offline"; }
+  tl.loading = false;
+  if (!hsData) { try { await loadHiscoresQuiet(); } catch (e) { /* the journey header is a nice extra */ } }
+  renderTimeline();
+}
+function tlIcon(e) {
+  switch (e.type) {
+    case "level": return skillIcon(e.skill);
+    case "combat": return wikiFile("Combat_icon");
+    case "total": return wikiFile("Stats_icon");
+    case "quest": return wikiFile("Quest_point_icon");
+    case "collection": return wikiFile((e.itemName || "Collection_log").replace(/ /g, "_"));
+    case "kc": return skillIcon("slayer");
+    case "clue": return wikiFile("Clue_scroll");
+    default: return wikiFile("Collection_log");
+  }
+}
+function tlDay(t) {
+  const d = new Date(t * 1000), today = new Date(); today.setHours(0, 0, 0, 0);
+  const day = new Date(d); day.setHours(0, 0, 0, 0);
+  const diff = Math.round((today - day) / 86400000);
+  return diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+}
+// One line: who (a link to their journey, unless it's theirs), what, when; "first" for server firsts.
+function tlRow(e) {
+  const time = new Date(e.t * 1000).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const who = tl.player ? "" : `<a class="tl-who" data-player="${esc(e.display)}">${esc(e.display)}</a> `;
+  const group = tl.player || tl.scope === "group" ? "" : `<span class="hint tl-group">${esc(e.groupName || "")}</span>`;
+  const big = (e.type === "level" && e.level >= 90) || e.type === "quest" || e.first;
+  return `<div class="tl-row ${big ? "big" : ""} t-${esc(e.type)}"><img class="tl-ic" src="${tlIcon(e)}" alt="" onerror="this.src='${wikiFile("Collection_log")}'">
+    <div class="tl-text">${who}${esc(e.text)}${e.first ? ` <span class="chip main" title="The first on the server">server first</span>` : ""}${group}</div>
+    <span class="tl-time">${time}</span></div>`;
+}
+// A player's journey: their highscores line on top (total level, rank, group), then their timeline.
+function tlHead() {
+  if (!tl.player) return "";
+  const rows = hsData && hsData.overall || [];
+  const i = rows.findIndex(r => r.name.toLowerCase() === tl.player.toLowerCase());
+  const r = rows[i];
+  return `<div class="tl-head"><button class="btn" id="tlBack">← ${tl.scope === "group" ? "My group" : "Everyone"}</button>
+    <div><b>${esc(r ? r.name : tl.player)}</b>${r ? `<div class="hint">${r.groupName ? esc(r.groupName) : esc(capName(r.group || r.name)) + "'s group"} · total level ${r.totalLevel.toLocaleString()} · rank ${i + 1}</div>` : ""}</div></div>`;
+}
+function renderTimeline() {
+  const scope = $("tlScope"), types = $("tlTypes");
+  scope.innerHTML = [["all", "Everyone"], ["group", "My group"]].map(([k, label]) =>
+    `<button class="${!tl.player && tl.scope === k ? "on" : ""}" data-scope="${k}" ${k === "group" && !tlMe() ? "disabled" : ""}>${label}</button>`).join("");
+  types.innerHTML = TL_TYPES.map(([k, label]) => `<button class="${tl.types.has(k) ? "on" : ""}" data-type="${k}">${label}</button>`).join("");
+  scope.querySelectorAll("[data-scope]").forEach(b => b.onclick = () => { tl.scope = b.dataset.scope; tl.player = null; loadTimeline(); });
+  types.querySelectorAll("[data-type]").forEach(b => b.onclick = () => { tl.types.has(b.dataset.type) ? tl.types.delete(b.dataset.type) : tl.types.add(b.dataset.type); loadTimeline(); });
+  const box = $("timeline");
+  if (tl.error && !tl.events.length) {
+    box.innerHTML = tlHead() + `<div class="empty"><h3>Timeline unavailable</h3><div>${esc(tl.error)}</div></div>`;
+  } else if (!tl.events.length) {
+    box.innerHTML = tlHead() + (tl.loading ? `<div class="empty"><h3>Loading…</h3></div>`
+      : `<div class="empty"><h3>Nothing yet</h3><div>Achievements show up here as they happen: every level, quests, collection log items, boss kills and clue scrolls.</div></div>`);
+  } else {
+    let html = tlHead(), day = "";
+    for (const e of tl.events) {
+      const d = tlDay(e.t);
+      if (d !== day) { html += `${day ? "</div>" : ""}<h4 class="tl-day">${esc(d)}</h4><div class="tl-list">`; day = d; }
+      html += tlRow(e);
+    }
+    html += "</div>" + (tl.more ? `<div style="text-align:center;margin:14px 0"><button class="btn" id="tlMore">${tl.loading ? "Loading…" : "Show older"}</button></div>` : "");
+    box.innerHTML = html;
+  }
+  box.querySelectorAll("[data-player]").forEach(a => a.onclick = () => openJourney(a.dataset.player));
+  const back = $("tlBack"); if (back) back.onclick = () => { tl.player = null; loadTimeline(); };
+  const more = $("tlMore"); if (more) more.onclick = () => loadTimeline(true);
+}
+// From anywhere (a highscores row, a group card): that player's journey on the Timeline tab.
+function openJourney(name) {
+  tl.player = name;
+  if (view !== "timeline") switchView("timeline"); else loadTimeline();
+}
+// The highscores' "Recent achievements" strip and a group's last three (the group view).
+// Cached 30 s: the highscores re-render on every refresh.
+const tlRecentCache = new Map();
+async function tlRecent(target, params, n) {
+  const el = $(target); if (!el) return;
+  const key = params + "&limit=" + n, hit = tlRecentCache.get(key);
+  let html = hit && Date.now() - hit.at < 30000 ? hit.html : null;
+  if (html === null) {
+    try {
+      const rows = (await tlFetch(key)).events || [];
+      html = !rows.length ? "" : `<div class="tl-strip"><span class="tl-strip-head">Recent achievements</span>${rows.map(e =>
+      `<span class="tl-pill"><img src="${tlIcon(e)}" alt="" onerror="this.remove()"><a data-player="${esc(e.display)}">${esc(e.display)}</a> ${esc(e.text)}</span>`).join("")}
+      <a class="tl-all" data-tl-all>All →</a></div>`;
+    } catch (e) { html = ""; }
+    tlRecentCache.set(key, { html, at: Date.now() });
+  }
+  if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  el.querySelectorAll("[data-player]").forEach(a => a.onclick = () => openJourney(a.dataset.player));
+  el.querySelectorAll("[data-tl-all]").forEach(a => a.onclick = () => { tl.player = null; switchView("timeline"); });
+}
+// Every highscores table: a player's name opens their journey.
+function hsJourneyLinks() {
+  if (hsSkill === "@wealth" || (hsSkill === "@groups" && !hsGroup)) return;
+  document.querySelectorAll("#hiscores .hs tr:not([data-group]) td:nth-child(2)").forEach(td => {
+    const name = td.textContent.trim();
+    if (!name || td.dataset.tl) return;
+    td.dataset.tl = "1"; td.classList.add("tl-link"); td.title = `${name}'s journey`;
+    td.onclick = () => openJourney(name);
+  });
 }
 
 // Coins the short way (12.3M), as on the web page.
@@ -2117,7 +2296,7 @@ function hiscoreGroups(hs, me) {
   const list = [...groups.values()].sort((a, b) => b.xp - a.xp || b.level - a.level);
   if (hsGroup) {
     const g = groups.get(hsGroup);
-    if (g) return `<div class="hs-group-head"><button class="btn" id="hsBack">← All groups</button><b>${esc(g.name)}</b><span class="hint">rank ${list.indexOf(g) + 1} · ${g.members.length} member${g.members.length === 1 ? "" : "s"}</span></div>`
+    if (g) return `<div class="hs-group-head"><button class="btn" id="hsBack">← All groups</button><b>${esc(g.name)}</b><span class="hint">rank ${list.indexOf(g) + 1} · ${g.members.length} member${g.members.length === 1 ? "" : "s"}</span></div>` + `<div id="hsGroupRecent"></div>`
       + `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
       + g.members.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${i + 1}</td><td>${hsName(r)}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("") + `</table>`;
   }
@@ -2196,6 +2375,7 @@ async function refresh() {
   renderSkills();
   renderBank();
   if (view === "hiscores") loadHiscores();
+  if (view === "timeline") loadTimeline();
   if (!$("filters").children.length || $("filters").dataset.n != (data.characters || []).length) {
     $("filters").dataset.n = (data.characters || []).length; renderFilters();
   }
@@ -2208,6 +2388,7 @@ $("tabs").onclick = e => {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-" + view));
   if (view === "output") renderConsole();
   if (view === "hiscores") loadHiscores();
+  if (view === "timeline") loadTimeline();
   if (view === "news") loadNews();
   if (view === "forum") loadForum();
   if (data) renderHeader();

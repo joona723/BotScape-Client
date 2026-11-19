@@ -234,6 +234,10 @@ class ScriptsPanel extends PluginPanel
 					all.values().removeIf(v -> PC.equals(Gateway.str(Gateway.map(v).get("pc"))));
 					hubRunning = all;
 					activities = Gateway.map(Gateway.getUrl(Gateway.configBase() + "/api/activity"));
+					if (System.currentTimeMillis() - serverScriptsAt > 60_000)
+					{
+						fetchServerScripts();
+					}
 				}
 				catch (Exception e)
 				{
@@ -433,25 +437,34 @@ class ScriptsPanel extends PluginPanel
 		list(packDir, "pack");
 		list(dir, "mine");
 		paintCards();
-		new Thread(() ->
+		new Thread(this::fetchServerScripts, "botscape-serverbots").start();
+	}
+
+	private volatile long serverScriptsAt;
+
+	/**
+	 * Which Bot Scape scripts run server-side for this account (GET /serverbots). Asked again every minute (the poller):
+	 * the first ask can come before the client has signed in, and the anonymous answer is "none".
+	 */
+	private void fetchServerScripts()
+	{
+		serverScriptsAt = System.currentTimeMillis();
+		try
 		{
-			try
+			List<Object> names = Gateway.list(Gateway.map(Gateway.get("/serverbots")).get("scripts"));
+			java.util.Set<String> now = new java.util.HashSet<>();
+			names.forEach(n -> now.add(Gateway.str(n)));
+			if (!now.equals(serverScripts))
 			{
-				List<Object> names = Gateway.list(Gateway.map(Gateway.get("/serverbots")).get("scripts"));
-				java.util.Set<String> now = new java.util.HashSet<>();
-				names.forEach(n -> now.add(Gateway.str(n)));
-				if (!now.equals(serverScripts))
-				{
-					serverScripts.clear();
-					serverScripts.addAll(now);
-					SwingUtilities.invokeLater(this::paintCards);
-				}
+				serverScripts.clear();
+				serverScripts.addAll(now);
+				SwingUtilities.invokeLater(this::paintCards);
 			}
-			catch (Exception ignored)
-			{
-				// An older server without the list: every script runs as Python, as before.
-			}
-		}, "botscape-serverbots").start();
+		}
+		catch (Exception ignored)
+		{
+			// An older server without the list, or offline: every script runs as Python, as before.
+		}
 	}
 
 	/** A Bot Scape script (not one of yours) with a server-side version, and this character isn't handed back to Python. */

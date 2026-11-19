@@ -2142,6 +2142,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, gw("GET", "/hiscores", timeout=10) or {})
             except Exception:
                 return self.send(200, {"error": "Server offline"})
+        # User-requested 2026-11-19: the Timeline tab (the gateway's achievements feed; same on the web page).
+        if url.path == "/api/timeline":
+            try:
+                return self.send(200, gw("GET", "/timeline" + (f"?{url.query}" if url.query else ""), timeout=10) or {})
+            except Exception:
+                return self.send(200, {"error": "Server offline"})
         if url.path == "/api/quest-journal":
             q = urllib.parse.parse_qs(url.query)
             who, quest = q.get("character", [""])[0], q.get("quest", [""])[0]
