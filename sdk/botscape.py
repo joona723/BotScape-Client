@@ -39,6 +39,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 
 GATEWAY = os.environ.get("BOT_GATEWAY", "http://127.0.0.1:7780")
@@ -80,6 +81,15 @@ def sign_in(name, password):
     if password:
         CREDENTIALS = (name, password)
     return TOKEN
+
+
+# One script per character (user-requested 2026-11-19): the gateway holds each character for the newest script, by this
+# id. Set once and inherited by the scripts this one starts (the AIO brain's blocks), so they count as the same script.
+SCRIPT_ID = os.environ.setdefault("BOTSCAPE_SCRIPT_ID", uuid.uuid4().hex)
+
+
+class ScriptTakenOver(SystemExit):
+    """Another script took the character over (the gateway's 409 "busy"): this one ends quietly (exit 0)."""
 
 
 _VIA = f"{os.path.splitext(os.path.basename(sys.argv[0] or 'script'))[0][:14] or 'script'} {os.getpid()}"
@@ -134,7 +144,8 @@ def request(method, path, body=None, timeout=15, _retry=True, _attempt=1):
     data = None if body is None else json.dumps(body).encode()
     # The server's login log shows how characters sign in (user-requested): scripts unless told otherwise.
     # The script and its process id (the server names them when a second driver cuts a trip short).
-    headers = {"Content-Type": "application/json", "X-BotScape-Via": os.environ.get("BOTSCAPE_VIA") or _VIA}
+    headers = {"Content-Type": "application/json", "X-BotScape-Via": os.environ.get("BOTSCAPE_VIA") or _VIA,
+               "X-BotScape-Script": SCRIPT_ID}
     if TOKEN:
         headers["Authorization"] = "Bearer " + TOKEN
     try:
@@ -170,6 +181,10 @@ def request(method, path, body=None, timeout=15, _retry=True, _attempt=1):
             payload = json.loads(raw or b"{}")
         except ValueError:
             payload = {}
+        if status == 409 and isinstance(payload, dict) and payload.get("busy"):
+            # Another script started on this character after us: it has it now (not a hiccup to retry).
+            print(payload.get("error") or "Another script took this character over: stopping.", flush=True)
+            raise ScriptTakenOver(0)
         raise GatewayError((payload.get("error") if isinstance(payload, dict) else None) or f"HTTP {status} for {path}")
     return json.loads(raw or b"null")
 
@@ -235,6 +250,14 @@ class Bot:
             if not self.password:
                 raise GatewayError(f"No password for {self.name}: put PASSWORD=... in bot.env")
             sign_in(self.account, self.password)
+        # Only one script runs on a character (user-requested 2026-11-19): this newest one takes it over, and one
+        # still running on it stops at its next action (an older server without it: nothing to do).
+        try:
+            taken = request("POST", f"/bots/{_q(self.name)}/claim")
+            if isinstance(taken, dict) and taken.get("took_over_from"):
+                print(f"Took {self.name} over from another script ({taken['took_over_from']}): that one stops.", flush=True)
+        except GatewayError:
+            pass
         status = self.status()
         if status != "online":
             if not self.password:
