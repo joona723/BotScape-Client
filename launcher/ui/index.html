@@ -608,6 +608,25 @@
   .tl-pill { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); }
   .tl-pill img { width: 16px; height: 16px; object-fit: contain; image-rendering: pixelated; }
   .tl-all { margin-left: auto; color: var(--gold); cursor: pointer; }
+  /* timeline graph */
+  .tlg-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; }
+  .tlg-zoom { margin-left: auto; display: flex; gap: 4px; }
+  .tlg-zoom button { min-width: 30px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
+  .tlg-zoom button:hover { background: var(--card-hover); }
+  .tlg-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 8px; font-size: 12.5px; }
+  .tlg-legend a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); cursor: pointer; }
+  .tlg-legend a:hover { color: var(--gold); }
+  .tlg-legend i, .tlg-tip i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .tlg-wrap { position: relative; max-width: 1100px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px 0; }
+  .tlg-wrap svg { display: block; width: 100%; height: auto; cursor: grab; user-select: none; touch-action: none; }
+  .tlg-wrap svg:active { cursor: grabbing; }
+  .tlg-grid { stroke: #232831; stroke-width: 1; } .tlg-base { stroke: var(--border); stroke-width: 1; }
+  .tlg-ax { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .tlg-label { fill: var(--text); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .tlg-cross { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+  .tlg-tip { display: none; position: absolute; pointer-events: none; z-index: 5; min-width: 160px; max-width: 320px; padding: 8px 10px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 6px 18px #0008; }
+  .tlg-tip-head { color: var(--muted); font-size: 11.5px; margin-bottom: 2px; }
   @media (max-width: 600px) { .tl-group { display: none; } .tl-row { align-items: flex-start; } }
   iframe { width: 100%; height: 100%; border: 0; display: block; background: #000; }
 
@@ -791,11 +810,10 @@
           <div class="skill-picker" id="hsSkills"></div>
           <div class="hs-activities skill-picker" id="hsActivities"></div>
         </div></div>
-        <div id="hsRecent"></div>
         <div id="hiscores"></div>
       </section>
       <section class="view" id="view-timeline">
-        <div class="toolbar tl-bar"><div class="tl-scope" id="tlScope"></div><div class="tl-types" id="tlTypes"></div></div>
+        <div class="toolbar tl-bar"><div class="tl-scope" id="tlMode"></div><div class="tl-scope" id="tlScope"></div><div class="tl-types" id="tlTypes"></div></div>
         <div id="timeline"></div>
       </section>
     </main>
@@ -2052,7 +2070,6 @@ let hsData = null, hsSkill = null, hsLoaded = 0, hsGroup = null;
 async function loadHiscores() {
   if (Date.now() - hsLoaded < 15000 && hsData) return renderHiscores();
   try { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); } catch (e) { hsData = { error: "Server offline" }; }
-  tlRecent("hsRecent", "", 6);
   renderHiscores();
 }
 async function loadHiscoresQuiet() { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); }
@@ -2143,7 +2160,8 @@ function renderHiscores() {
 // whole server's or one group's or one player's, newest first. The same on the web page and in the hub.
 const TL_TYPES = [["level", "Levels", "level,total,combat"], ["quest", "Quests", "quest"], ["collection", "Collection log", "collection"],
   ["kc", "Bosses", "kc"], ["clue", "Clues", "clue"]];
-let tl = { scope: "all", player: null, types: new Set(), events: [], more: false, loading: false, error: "", at: 0, key: "" };
+let tl = { scope: "all", player: null, types: new Set(), events: [], more: false, loading: false, error: "", at: 0, key: "",
+  mode: (() => { try { return localStorage.getItem("tlMode") || "graph"; } catch (e) { return "graph"; } })() };
 function tlParams(before) {
   const p = new URLSearchParams({ limit: "60" });
   if (tl.player) p.set("player", tl.player);
@@ -2159,6 +2177,8 @@ function tlGroupKey() {
   return ((row && row.group) || me).toLowerCase();
 }
 async function loadTimeline(more) {
+  tlBar();
+  if (tl.mode === "graph") return loadTimelineGraph();
   const key = tlParams();
   if (!more && key === tl.key && Date.now() - tl.at < 15000) return renderTimeline();
   if (tl.loading) return;
@@ -2212,13 +2232,28 @@ function tlHead() {
   return `<div class="tl-head"><button class="btn" id="tlBack">← ${tl.scope === "group" ? "My group" : "Everyone"}</button>
     <div><b>${esc(r ? r.name : tl.player)}</b>${r ? `<div class="hint">${r.groupName ? esc(r.groupName) : esc(capName(r.group || r.name)) + "'s group"} · total level ${r.totalLevel.toLocaleString()} · rank ${i + 1}</div>` : ""}</div></div>`;
 }
-function renderTimeline() {
-  const scope = $("tlScope"), types = $("tlTypes");
-  scope.innerHTML = [["all", "Everyone"], ["group", "My group"]].map(([k, label]) =>
-    `<button class="${!tl.player && tl.scope === k ? "on" : ""}" data-scope="${k}" ${k === "group" && !tlMe() ? "disabled" : ""}>${label}</button>`).join("");
-  types.innerHTML = TL_TYPES.map(([k, label]) => `<button class="${tl.types.has(k) ? "on" : ""}" data-type="${k}">${label}</button>`).join("");
+// The toolbar: Graph/List, Everyone/My group, the type chips (in the graph they pick which dots show).
+function tlBar() {
+  const scope = $("tlScope"), types = $("tlTypes"), mode = $("tlMode");
+  const setHtml = (el, html) => { if (el && el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
+  setHtml(mode, [["graph", "Graph"], ["list", "List"]].map(([k, label]) => `<button class="${tl.mode === k ? "on" : ""}" data-mode="${k}">${label}</button>`).join(""));
+  setHtml(scope, [["all", "Everyone"], ["group", "My group"]].map(([k, label]) =>
+    `<button class="${!tl.player && tl.scope === k ? "on" : ""}" data-scope="${k}" ${k === "group" && !tlMe() ? "disabled" : ""}>${label}</button>`).join(""));
+  setHtml(types, TL_TYPES.map(([k, label]) => `<button class="${tl.types.has(k) ? "on" : ""}" data-type="${k}">${label}</button>`).join(""));
+  mode.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
+    tl.mode = b.dataset.mode; try { localStorage.setItem("tlMode", tl.mode); } catch (e) { /* just this time */ }
+    if (tl.mode === "list") tl.key = "";
+    loadTimeline();
+  });
   scope.querySelectorAll("[data-scope]").forEach(b => b.onclick = () => { tl.scope = b.dataset.scope; tl.player = null; loadTimeline(); });
-  types.querySelectorAll("[data-type]").forEach(b => b.onclick = () => { tl.types.has(b.dataset.type) ? tl.types.delete(b.dataset.type) : tl.types.add(b.dataset.type); loadTimeline(); });
+  types.querySelectorAll("[data-type]").forEach(b => b.onclick = () => {
+    tl.types.has(b.dataset.type) ? tl.types.delete(b.dataset.type) : tl.types.add(b.dataset.type);
+    if (tl.mode === "graph") { tlBar(); renderTimelineGraph(); } else loadTimeline();
+  });
+}
+function renderTimeline() {
+  if (tl.mode === "graph") return;
+  tlBar();
   const box = $("timeline");
   if (tl.error && !tl.events.length) {
     box.innerHTML = tlHead() + `<div class="empty"><h3>Timeline unavailable</h3><div>${esc(tl.error)}</div></div>`;
@@ -2264,6 +2299,187 @@ async function tlRecent(target, params, n) {
   el.querySelectorAll("[data-player]").forEach(a => a.onclick = () => openJourney(a.dataset.player));
   el.querySelectorAll("[data-tl-all]").forEach(a => a.onclick = () => { tl.player = null; switchView("timeline"); });
 }
+// --- timeline graph -----------------------------------------------------------------------------
+// User-requested 2026-11-19: the Timeline as a zoomable graph. Total level over time, one line per player (up to 8),
+// quests, collection log items, boss kills and clues as dots on their line. Scroll to zoom (around the pointer),
+// drag to pan, double-click to see it all. The list is still there (the "List" switch) as the table view.
+// Colours: the dark categorical palette, validated on the hub's #161a20 (CVD worst 8.4, normal-vision 19.3, all >= 3:1).
+const TL_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+const TL_MARK_TYPES = new Set(["quest", "collection", "kc", "clue"]);
+let tlg = { key: "", events: [], loading: false, error: "", view: null, drag: null, at: 0 };
+// Everything in the scope (no type filter: the lines need the levels), newest first, up to 1000.
+async function loadTimelineGraph() {
+  const p = new URLSearchParams({ limit: "200" });
+  if (tl.player) p.set("player", tl.player); else if (tl.scope === "group" && tlMe()) p.set("group", tlGroupKey());
+  const key = p.toString();
+  if (key === tlg.key && Date.now() - tlg.at < 15000) return renderTimelineGraph();
+  if (tlg.loading) return;
+  tlg.loading = true;
+  if (key !== tlg.key) { tlg.events = []; tlg.view = null; renderTimelineGraph(); }
+  try {
+    let all = [], before = null;
+    for (let page = 0; page < 5; page++) {
+      const q = new URLSearchParams(p); if (before) q.set("before", String(before));
+      const r = await tlFetch(q.toString());
+      if (r.error) throw new Error(r.error);
+      all = all.concat(r.events || []);
+      if (!r.more || !(r.events || []).length) break;
+      before = r.events[r.events.length - 1].t;
+    }
+    tlg.events = all; tlg.key = key; tlg.error = ""; tlg.at = Date.now();
+  } catch (e) { tlg.error = e.message || "Server offline"; }
+  tlg.loading = false;
+  renderTimelineGraph();
+}
+// Each player's total level as steps over time: from their "journey so far" forward, else back from the highscores.
+function tlSeries() {
+  const byName = new Map();
+  for (const e of [...tlg.events].reverse()) {   // oldest first
+    if (!byName.has(e.name)) byName.set(e.name, { name: e.name, display: e.display, events: [] });
+    byName.get(e.name).events.push(e);
+  }
+  let series = [...byName.values()].map(s => {
+    const j = s.events.find(e => e.type === "journey");
+    let total, pts = [];
+    if (j) total = j.totalLevel;
+    else {
+      const row = (hsData && hsData.overall || []).find(r => r.name.toLowerCase() === s.display.toLowerCase());
+      if (!row) return null;
+      total = row.totalLevel - s.events.filter(e => e.type === "level").length;
+    }
+    for (const e of s.events) {
+      if (e.type === "level" && (!j || e.t >= j.t)) total++;
+      if (e.type === "journey" || e.type === "level" || !pts.length) pts.push({ t: e.t, v: total });
+    }
+    const marks = s.events.filter(e => TL_MARK_TYPES.has(e.type) && (!tl.types.size || tl.types.has(e.type)));
+    return { ...s, pts, marks, count: s.events.length };
+  }).filter(Boolean);
+  const more = Math.max(0, series.length - 8);
+  // The 8 most active; colours by name order among them (a player keeps theirs while the set stays the same).
+  series = series.sort((a, b) => b.count - a.count).slice(0, 8).sort((a, b) => a.display.localeCompare(b.display));
+  series.forEach((s, i) => s.color = TL_COLORS[i]);
+  return { series, more };
+}
+function tlFmtTime(t, span) {
+  const d = new Date(t * 1000);
+  return span < 2 * 86400 ? d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+function tlTicks(a, b, n) {
+  const span = b - a, raw = span / n;
+  const steps = [60, 300, 900, 1800, 3600, 3 * 3600, 6 * 3600, 12 * 3600, 86400, 2 * 86400, 7 * 86400, 30 * 86400];
+  const step = steps.find(s => s >= raw) || steps[steps.length - 1];
+  const out = []; const off = new Date().getTimezoneOffset() * 60;
+  for (let t = Math.ceil((a - off) / step) * step + off; t <= b; t += step) out.push(t);
+  return out;
+}
+function renderTimelineGraph() {
+  const box = $("timeline");
+  if (tlg.error && !tlg.events.length) { box.innerHTML = tlHead() + `<div class="empty"><h3>Timeline unavailable</h3><div>${esc(tlg.error)}</div></div>`; return tlBindHead(box); }
+  const { series, more } = tlSeries();
+  if (!series.length) {
+    box.innerHTML = tlHead() + `<div class="empty"><h3>${tlg.loading ? "Loading…" : "Nothing to draw yet"}</h3>${tlg.loading ? "" : "<div>Levels, quests and kills show up here as they happen.</div>"}</div>`;
+    return tlBindHead(box);
+  }
+  const now = Date.now() / 1000;
+  const tMin = Math.min(...series.map(s => s.pts[0].t)), tMax = Math.max(now, ...series.map(s => s.pts[s.pts.length - 1].t));
+  const full = [tMin - Math.max(60, (tMax - tMin) * 0.02), tMax];
+  const [x0, x1] = tlg.view || full;
+  const legend = series.length > 1 ? `<div class="tlg-legend">${series.map(s => `<a data-player="${esc(s.display)}"><i style="background:${s.color}"></i>${esc(s.display)}</a>`).join("")}
+    ${more ? `<span class="hint">+${more} more: pick a player or My group</span>` : ""}</div>` : "";
+  box.innerHTML = tlHead() + `<div class="tlg-tools"><span class="hint">Total level over time · dots: quests, collection log, kills, clues · scroll to zoom, drag to move, double-click to see it all</span>
+      <span class="tlg-zoom"><button data-z="in" title="Zoom in">+</button><button data-z="out" title="Zoom out">−</button><button data-z="reset">All</button></span></div>`
+    + legend + `<div class="tlg-wrap" id="tlgWrap"><svg id="tlgSvg"></svg><div class="tlg-tip" id="tlgTip"></div></div>`;
+  tlBindHead(box);
+  const wrap = $("tlgWrap"), svg = $("tlgSvg"), tip = $("tlgTip");
+  const W = wrap.clientWidth || 800, H = 380, L = 52, R = series.length <= 4 ? 96 : 16, T = 12, B = 28;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+  // y fits what's visible (so zooming in on a week shows that week's climb).
+  const valueAt = (s, t) => { let v = null; for (const p of s.pts) { if (p.t <= t) v = p.v; else break; } return v; };
+  let lo = Infinity, hi = -Infinity;
+  for (const s of series) {
+    const a = valueAt(s, x0); if (a != null) { lo = Math.min(lo, a); hi = Math.max(hi, a); }
+    for (const p of s.pts) if (p.t >= x0 && p.t <= x1) { lo = Math.min(lo, p.v); hi = Math.max(hi, p.v); }
+  }
+  if (!isFinite(lo)) { lo = 0; hi = 100; }
+  const pad = Math.max(2, (hi - lo) * 0.08); lo = Math.max(0, Math.floor(lo - pad)); hi = Math.ceil(hi + pad);
+  const X = t => L + (t - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  let g = "";
+  const yStep = Math.max(1, Math.ceil((hi - lo) / 5 / 5) * 5);
+  for (let v = Math.ceil(lo / yStep) * yStep; v <= hi; v += yStep)
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="tlg-grid"/><text x="${L - 8}" y="${Y(v) + 4}" class="tlg-ax" text-anchor="end">${v.toLocaleString()}</text>`;
+  for (const t of tlTicks(x0, x1, Math.max(3, Math.floor((W - L - R) / 110))))
+    g += `<text x="${X(t)}" y="${H - 8}" class="tlg-ax" text-anchor="middle">${esc(tlFmtTime(t, x1 - x0))}</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" class="tlg-base"/>`;
+  g += `<clipPath id="tlgClip"><rect x="${L}" y="0" width="${W - L - R}" height="${H}"/></clipPath><g clip-path="url(#tlgClip)">`;
+  for (const s of series) {
+    let d = "", prev = null;
+    for (const p of s.pts) { d += prev == null ? `M${X(p.t)},${Y(p.v)}` : `H${X(p.t)}V${Y(p.v)}`; prev = p; }
+    d += `H${X(Math.min(now, x1 + (x1 - x0)))}`;
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    for (const e of s.marks) {
+      const v = valueAt(s, e.t); if (v == null) continue;
+      g += `<circle cx="${X(e.t)}" cy="${Y(v)}" r="${e.first ? 5.5 : 4.5}" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+    }
+  }
+  g += `</g><line id="tlgCross" class="tlg-cross" y1="${T}" y2="${H - B}" style="display:none"/>`;
+  if (series.length <= 4) for (const s of series) {   // direct labels at the right end
+    const v = valueAt(s, Math.min(x1, now)); if (v == null) continue;
+    g += `<text x="${W - R + 6}" y="${Y(v) + 4}" class="tlg-label">${esc(s.display)} ${v.toLocaleString()}</text>`;
+  }
+  svg.innerHTML = g;
+  box.querySelectorAll(".tlg-legend [data-player]").forEach(a => a.onclick = () => openJourney(a.dataset.player));
+  // Zoom around a time; never wider than everything, never under 10 minutes.
+  const zoom = (factor, at) => {
+    const span = Math.min(full[1] - full[0], Math.max(600, (x1 - x0) * factor));
+    let a = at - (at - x0) * span / (x1 - x0); a = Math.max(full[0], Math.min(a, full[1] - span));
+    tlg.view = span >= full[1] - full[0] - 1 ? null : [a, a + span];
+    renderTimelineGraph();
+  };
+  const timeAt = clientX => { const r = svg.getBoundingClientRect(); return x0 + ((clientX - r.left) * W / r.width - L) / (W - L - R) * (x1 - x0); };
+  svg.onwheel = ev => { ev.preventDefault(); zoom(ev.deltaY < 0 ? 1 / 1.4 : 1.4, timeAt(ev.clientX)); };
+  svg.ondblclick = () => { tlg.view = null; renderTimelineGraph(); };
+  box.querySelectorAll(".tlg-zoom [data-z]").forEach(b => b.onclick = () => {
+    if (b.dataset.z === "reset") { tlg.view = null; return renderTimelineGraph(); }
+    zoom(b.dataset.z === "in" ? 1 / 1.6 : 1.6, (x0 + x1) / 2);
+  });
+  svg.onpointerdown = ev => { tlg.drag = { x: ev.clientX, view: [x0, x1] }; svg.setPointerCapture(ev.pointerId); };
+  svg.onpointerup = () => { tlg.drag = null; };
+  const cross = svg.querySelector("#tlgCross");
+  svg.onpointerleave = () => { if (!tlg.drag) { tip.style.display = "none"; cross.style.display = "none"; } };
+  svg.onpointermove = ev => {
+    const r = svg.getBoundingClientRect();
+    if (tlg.drag) {
+      const dt = (ev.clientX - tlg.drag.x) * W / r.width / (W - L - R) * (tlg.drag.view[1] - tlg.drag.view[0]);
+      const span = tlg.drag.view[1] - tlg.drag.view[0];
+      const a = Math.max(full[0], Math.min(tlg.drag.view[0] - dt, full[1] - span));
+      if (Math.abs(ev.clientX - tlg.drag.x) > 2) { tlg.view = [a, a + span]; const keep = tlg.drag; renderTimelineGraph(); tlg.drag = keep; }
+      return;
+    }
+    const px = (ev.clientX - r.left) * W / r.width, py = (ev.clientY - r.top) * H / r.height;
+    if (px < L || px > W - R) { tip.style.display = "none"; cross.style.display = "none"; return; }
+    const t = timeAt(ev.clientX);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.display = "";
+    // The nearest dot within 12 px, else every line's total at that time.
+    let best = null, bestD = 144;
+    for (const s of series) for (const e of s.marks) {
+      const v = valueAt(s, e.t); if (v == null) continue;
+      const d = (X(e.t) - px) ** 2 + (Y(v) - py) ** 2; if (d < bestD) { bestD = d; best = { s, e }; }
+    }
+    const when = new Date(t * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    tip.innerHTML = best
+      ? `<div class="tlg-tip-head">${esc(new Date(best.e.t * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</div>
+         <div><i style="background:${best.s.color}"></i><b>${esc(best.e.display)}</b> ${esc(best.e.text)}${best.e.first ? " · server first" : ""}</div>`
+      : `<div class="tlg-tip-head">${esc(when)}</div>` + series.map(s => [s, valueAt(s, t)]).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1])
+          .map(([s, v]) => `<div><i style="background:${s.color}"></i>${esc(s.display)} <b>${v.toLocaleString()}</b></div>`).join("");
+    tip.style.display = "block";
+    const wr = wrap.getBoundingClientRect(), tw = tip.offsetWidth;
+    let left = ev.clientX - wr.left + 14; if (left + tw > wr.width) left = ev.clientX - wr.left - tw - 14;
+    tip.style.left = Math.max(0, left) + "px"; tip.style.top = Math.max(0, ev.clientY - wr.top - 10) + "px";
+  };
+}
+function tlBindHead(box) { const back = $("tlBack"); if (back) back.onclick = () => { tl.player = null; loadTimeline(); }; }
+window.addEventListener("resize", () => { if (view === "timeline" && tl.mode === "graph" && $("tlgSvg")) renderTimelineGraph(); });
 // Every highscores table: a player's name opens their journey.
 function hsJourneyLinks() {
   if (hsSkill === "@wealth" || (hsSkill === "@groups" && !hsGroup)) return;
