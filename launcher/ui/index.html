@@ -580,7 +580,12 @@
   .hs .num { text-align: right; font-variant-numeric: tabular-nums; }
   .hs .medal { font-weight: 700; color: var(--gold); }
   /* timeline (user-requested 2026-11-19; the web page uses these too) */
-  .tl-bar { flex-wrap: wrap; gap: 10px; }
+  .tl-bar { flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  /* Labelled groups (user-requested 2026-11-20: "group these better"): View, Who, Show, and the graph's Line. */
+  .tl-grp { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--panel); flex-wrap: wrap; }
+  .tl-lab { color: var(--muted); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+  .tlg-hint { margin: 0 0 8px; font-size: 12px; }
   .tl-scope, .tl-types { display: flex; flex-wrap: wrap; gap: 4px; }
   .tl-scope button, .tl-types button { padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
     color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
@@ -622,7 +627,7 @@
   .tlg-legend a { display: inline-flex; align-items: center; gap: 6px; color: var(--text); cursor: pointer; }
   .tlg-legend a:hover { color: var(--gold); }
   .tlg-legend i, .tlg-tip i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
-  .tlg-wrap { position: relative; max-width: 1100px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px 0; }
+  .tlg-wrap { position: relative; width: 100%; box-sizing: border-box; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px 4px 0; }
   .tlg-wrap svg { display: block; width: 100%; height: auto; cursor: grab; user-select: none; touch-action: none; }
   .tlg-wrap svg:active { cursor: grabbing; }
   .tlg-grid { stroke: #232831; stroke-width: 1; } .tlg-base { stroke: var(--border); stroke-width: 1; }
@@ -825,7 +830,7 @@
         <div id="hiscores"></div>
       </section>
       <section class="view" id="view-timeline">
-        <div class="toolbar tl-bar"><div class="tl-scope" id="tlMode"></div><div class="tl-scope" id="tlScope"></div><div class="tl-types" id="tlTypes"></div></div>
+        <div class="toolbar tl-bar"><div class="tl-grp"><span class="tl-lab">View</span><div class="tl-scope" id="tlMode"></div></div><div class="tl-grp"><span class="tl-lab">Who</span><div class="tl-scope" id="tlScope"></div></div><div class="tl-grp"><span class="tl-lab">Show</span><div class="tl-types" id="tlTypes"></div></div></div>
         <div id="timeline"></div>
       </section>
     </main>
@@ -2426,14 +2431,16 @@ function renderTimelineGraph() {
     : `<a data-player="${esc(s.display)}" data-si="${series.indexOf(s)}"><i style="background:${s.color}"></i>${esc(s.display)}</a>`).join("")}
     ${more ? `<span class="hint">+${more} more: pick a player or My group</span>` : ""}</div>` : "";
   box.innerHTML = tlHead() + `<div class="tlg-tools">${tlgMetricBar()}
-      <span class="hint">${tlg.metric === "wealth" ? "Each group's total wealth (everything owned, at GE prices) · dots: notable items, wealth milestones"
+      <span class="tlg-zoom"><button data-z="in" title="Zoom in">+</button><button data-z="out" title="Zoom out">−</button><button data-z="reset">All</button></span></div>
+    <div class="hint tlg-hint">${tlg.metric === "wealth" ? "Each group's total wealth (everything owned, at GE prices) · dots: notable items, wealth milestones"
         : tlg.metric === "gain" ? "Levels gained since the left edge (everyone starts at 0) · icons: quests, items, kills, clues"
-        : "Total level over time · icons: quests, items, kills, clues"} · scroll to zoom, drag to move, double-click to see it all</span>
-      <span class="tlg-zoom"><button data-z="in" title="Zoom in">+</button><button data-z="out" title="Zoom out">−</button><button data-z="reset">All</button></span></div>`
+        : "Total level over time · icons: quests, items, kills, clues"} · scroll to zoom, drag to move, double-click to see it all</div>`
     + legend + `<div class="tlg-wrap" id="tlgWrap"><svg id="tlgSvg"></svg><div class="tlg-tip" id="tlgTip"></div></div>`;
   tlBindHead(box);
   const wrap = $("tlgWrap"), svg = $("tlgSvg"), tip = $("tlgTip");
-  const W = wrap.clientWidth || 800, H = 420, L = 52, R = 132, T = 26, B = 28;
+  // Full width and as tall as the window allows (user-requested 2026-11-20: responsive, full width of the client/site).
+  const W = wrap.clientWidth || 800, L = 52, R = 132, T = 26, B = 28;
+  const H = Math.round(Math.max(300, Math.min(W * 0.6, window.innerHeight - wrap.getBoundingClientRect().top - 32)));
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
   // y fits what's visible (so zooming in on a week shows that week's climb).
   const valueAt = (s, t) => { let v = null; for (const p of s.pts) { if (p.t <= t) v = p.v; else break; } return v; };
@@ -2574,8 +2581,8 @@ function tlRank(e) {
   return (e.first ? 0 : 10) + ({ item: 1, quest: 2, wealth: 3, kc: 4, collection: 5, clue: 6 }[e.type] || 9) - Math.min(0.9, (e.value || 0) / 1e9);
 }
 function tlgMetricBar() {
-  return `<span class="tlg-metric">${[["gain", "Levels gained"], ["level", "Total level"], ["wealth", "Wealth"]].map(([k, l]) =>
-    `<button class="${tlg.metric === k ? "on" : ""}" data-m="${k}">${l}</button>`).join("")}</span>`;
+  return `<span class="tl-grp"><span class="tl-lab">Line</span><span class="tlg-metric">${[["gain", "Levels gained"], ["level", "Total level"], ["wealth", "Wealth"]].map(([k, l]) =>
+    `<button class="${tlg.metric === k ? "on" : ""}" data-m="${k}">${l}</button>`).join("")}</span></span>`;
 }
 function tlgBindMetric(box) {
   box.querySelectorAll(".tlg-metric [data-m]").forEach(b => b.onclick = () => {
