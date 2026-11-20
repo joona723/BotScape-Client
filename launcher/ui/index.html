@@ -611,6 +611,11 @@
   /* timeline graph */
   .tlg-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 2px 0 8px; }
   .tlg-zoom { margin-left: auto; display: flex; gap: 4px; }
+  .tlg-metric { display: flex; gap: 4px; }
+  .tlg-metric button { padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted);
+    font: inherit; font-size: 12.5px; cursor: pointer; }
+  .tlg-metric button.on { background: #221a0c; border-color: var(--gold-dim); color: var(--gold); }
+  .tlg-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
   .tlg-zoom button { min-width: 30px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; cursor: pointer; }
   .tlg-zoom button:hover { background: var(--card-hover); }
   .tlg-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 8px; font-size: 12.5px; }
@@ -624,6 +629,13 @@
   .tlg-ax { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
   .tlg-label { fill: var(--text); font-size: 11.5px; font-variant-numeric: tabular-nums; }
   .tlg-cross { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+  .tlg-mark image { pointer-events: none; image-rendering: pixelated; }
+  .tlg-mlabel { fill: var(--text); font-size: 11px; font-weight: 600; paint-order: stroke; stroke: var(--panel); stroke-width: 3px;
+    stroke-linejoin: round; pointer-events: none; }
+  .tlg-endv { fill: var(--muted); font-weight: 400; }
+  .tlg-end { cursor: default; }
+  #tlgSvg.focus .tlg-line:not(.hl), #tlgSvg.focus .tlg-mark:not(.hl), #tlgSvg.focus .tlg-mlabel:not(.hl), #tlgSvg.focus .tlg-end:not(.hl) { opacity: .15; }
+  #tlgSvg .tlg-line, #tlgSvg .tlg-mark, #tlgSvg .tlg-mlabel, #tlgSvg .tlg-end { transition: opacity .15s; }
   .tlg-tip { display: none; position: absolute; pointer-events: none; z-index: 5; min-width: 160px; max-width: 320px; padding: 8px 10px;
     background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 6px 18px #0008; }
   .tlg-tip-head { color: var(--muted); font-size: 11.5px; margin-bottom: 2px; }
@@ -2074,6 +2086,7 @@ async function loadHiscores() {
 }
 async function loadHiscoresQuiet() { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); }
 async function tlFetch(query) { return await (await fetch("/api/timeline?" + query)).json(); }
+async function tlWealthFetch(query) { return await (await fetch("/api/timeline/wealth?" + query)).json(); }
 function tlMe() { return (data && data.main) || ""; }
 // User-requested: "Simba's group", never "simba's group" (group keys are lowercase account names).
 function capName(s) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
@@ -2159,7 +2172,7 @@ function renderHiscores() {
 // User-requested 2026-11-19: each player's journey (every level, quests, collection log, boss kills, clues), the
 // whole server's or one group's or one player's, newest first. The same on the web page and in the hub.
 const TL_TYPES = [["level", "Levels", "level,total,combat"], ["quest", "Quests", "quest"], ["collection", "Collection log", "collection"],
-  ["kc", "Bosses", "kc"], ["clue", "Clues", "clue"]];
+  ["kc", "Bosses", "kc"], ["clue", "Clues", "clue"], ["item", "Notable items", "item"], ["wealth", "Wealth", "wealth"]];
 let tl = { scope: "all", player: null, types: new Set(), events: [], more: false, loading: false, error: "", at: 0, key: "",
   mode: (() => { try { return localStorage.getItem("tlMode") || "graph"; } catch (e) { return "graph"; } })() };
 function tlParams(before) {
@@ -2204,6 +2217,8 @@ function tlIcon(e) {
     case "collection": return wikiFile((e.itemName || "Collection_log").replace(/ /g, "_"));
     case "kc": return skillIcon("slayer");
     case "clue": return wikiFile("Clue_scroll");
+    case "item": return wikiFile((e.itemName || "Coins_10000").replace(/ /g, "_"));
+    case "wealth": return wikiFile("Coins_10000");
     default: return wikiFile("Collection_log");
   }
 }
@@ -2305,14 +2320,16 @@ async function tlRecent(target, params, n) {
 // drag to pan, double-click to see it all. The list is still there (the "List" switch) as the table view.
 // Colours: the dark categorical palette, validated on the hub's #161a20 (CVD worst 8.4, normal-vision 19.3, all >= 3:1).
 const TL_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
-const TL_MARK_TYPES = new Set(["quest", "collection", "kc", "clue"]);
-let tlg = { key: "", events: [], loading: false, error: "", view: null, drag: null, at: 0 };
+const TL_MARK_TYPES = new Set(["quest", "collection", "kc", "clue", "item", "wealth"]);
+// User-requested 2026-11-20: the graph shows total level or total wealth (each group's, every 10 minutes).
+let tlg = { key: "", events: [], wealth: [], loading: false, error: "", view: null, drag: null, at: 0,
+  metric: (() => { try { return localStorage.getItem("tlMetric2") || "gain"; } catch (e) { return "gain"; } })() };
 // Everything in the scope (no type filter: the lines need the levels), newest first, up to 1000.
 async function loadTimelineGraph() {
   const p = new URLSearchParams({ limit: "200" });
   if (tl.player) p.set("player", tl.player); else if (tl.scope === "group" && tlMe()) p.set("group", tlGroupKey());
-  const key = p.toString();
-  if (key === tlg.key && Date.now() - tlg.at < 15000) return renderTimelineGraph();
+  const key = p.toString() + "|" + tlg.metric;
+  if (key === tlg.key && Date.now() - tlg.at < 15000) { if (!$("tlgSvg")) renderTimelineGraph(); return; }
   if (tlg.loading) return;
   tlg.loading = true;
   if (key !== tlg.key) { tlg.events = []; tlg.view = null; renderTimelineGraph(); }
@@ -2326,6 +2343,13 @@ async function loadTimelineGraph() {
       if (!r.more || !(r.events || []).length) break;
       before = r.events[r.events.length - 1].t;
     }
+    if (tlg.metric === "wealth") {
+      // The player's group (their events say it), else My group's, else the 8 wealthiest.
+      const g = tl.player ? ((all[0] && all[0].group) || ((hsData && hsData.overall || []).find(r => r.name.toLowerCase() === tl.player.toLowerCase()) || {}).group || tl.player)
+        : tl.scope === "group" && tlMe() ? tlGroupKey() : null;
+      const w = await tlWealthFetch(g ? "group=" + encodeURIComponent(g.toLowerCase()) : "top=8");
+      tlg.wealth = (w && w.groups) || [];
+    }
     tlg.events = all; tlg.key = key; tlg.error = ""; tlg.at = Date.now();
   } catch (e) { tlg.error = e.message || "Server offline"; }
   tlg.loading = false;
@@ -2333,6 +2357,15 @@ async function loadTimelineGraph() {
 }
 // Each player's total level as steps over time: from their "journey so far" forward, else back from the highscores.
 function tlSeries() {
+  if (tlg.metric === "wealth") {
+    let series = tlg.wealth.filter(g => (g.points || []).length).map(g => ({
+      name: g.key, display: g.name, group: true, pts: g.points.map(([t, v]) => ({ t, v })),
+      marks: tlg.events.filter(e => e.group === g.key && TL_MARK_TYPES.has(e.type) && (!tl.types.size || tl.types.has(e.type))), count: g.points.length,
+    }));
+    series = series.slice(0, 8).sort((a, b) => a.display.localeCompare(b.display));
+    series.forEach((s, i) => s.color = TL_COLORS[i]);
+    return { series, more: 0 };
+  }
   const byName = new Map();
   for (const e of [...tlg.events].reverse()) {   // oldest first
     if (!byName.has(e.name)) byName.set(e.name, { name: e.name, display: e.display, events: [] });
@@ -2378,57 +2411,104 @@ function renderTimelineGraph() {
   if (tlg.error && !tlg.events.length) { box.innerHTML = tlHead() + `<div class="empty"><h3>Timeline unavailable</h3><div>${esc(tlg.error)}</div></div>`; return tlBindHead(box); }
   const { series, more } = tlSeries();
   if (!series.length) {
-    box.innerHTML = tlHead() + `<div class="empty"><h3>${tlg.loading ? "Loading…" : "Nothing to draw yet"}</h3>${tlg.loading ? "" : "<div>Levels, quests and kills show up here as they happen.</div>"}</div>`;
+    // The metric switch stays, so an empty level graph can still go to the wealth one (and back).
+    box.innerHTML = tlHead() + `<div class="tlg-tools">${tlgMetricBar()}</div><div class="empty"><h3>${tlg.loading ? "Loading…" : "Nothing to draw yet"}</h3>${tlg.loading ? ""
+      : tlg.metric === "wealth" ? "<div>Each group's total wealth is recorded every 10 minutes.</div>" : "<div>Levels, quests and kills show up here as they happen.</div>"}</div>`;
+    tlgBindMetric(box);
     return tlBindHead(box);
   }
   const now = Date.now() / 1000;
   const tMin = Math.min(...series.map(s => s.pts[0].t)), tMax = Math.max(now, ...series.map(s => s.pts[s.pts.length - 1].t));
   const full = [tMin - Math.max(60, (tMax - tMin) * 0.02), tMax];
   const [x0, x1] = tlg.view || full;
-  const legend = series.length > 1 ? `<div class="tlg-legend">${series.map(s => `<a data-player="${esc(s.display)}"><i style="background:${s.color}"></i>${esc(s.display)}</a>`).join("")}
+  const fmtV = v => tlg.metric === "wealth" ? gpShort(v) : v.toLocaleString();
+  const legend = series.length > 1 ? `<div class="tlg-legend">${series.map(s => s.group ? `<span><i style="background:${s.color}"></i>${esc(s.display)}</span>`
+    : `<a data-player="${esc(s.display)}" data-si="${series.indexOf(s)}"><i style="background:${s.color}"></i>${esc(s.display)}</a>`).join("")}
     ${more ? `<span class="hint">+${more} more: pick a player or My group</span>` : ""}</div>` : "";
-  box.innerHTML = tlHead() + `<div class="tlg-tools"><span class="hint">Total level over time · dots: quests, collection log, kills, clues · scroll to zoom, drag to move, double-click to see it all</span>
+  box.innerHTML = tlHead() + `<div class="tlg-tools">${tlgMetricBar()}
+      <span class="hint">${tlg.metric === "wealth" ? "Each group's total wealth (everything owned, at GE prices) · dots: notable items, wealth milestones"
+        : tlg.metric === "gain" ? "Levels gained since the left edge (everyone starts at 0) · icons: quests, items, kills, clues"
+        : "Total level over time · icons: quests, items, kills, clues"} · scroll to zoom, drag to move, double-click to see it all</span>
       <span class="tlg-zoom"><button data-z="in" title="Zoom in">+</button><button data-z="out" title="Zoom out">−</button><button data-z="reset">All</button></span></div>`
     + legend + `<div class="tlg-wrap" id="tlgWrap"><svg id="tlgSvg"></svg><div class="tlg-tip" id="tlgTip"></div></div>`;
   tlBindHead(box);
   const wrap = $("tlgWrap"), svg = $("tlgSvg"), tip = $("tlgTip");
-  const W = wrap.clientWidth || 800, H = 380, L = 52, R = series.length <= 4 ? 96 : 16, T = 12, B = 28;
+  const W = wrap.clientWidth || 800, H = 420, L = 52, R = 132, T = 26, B = 28;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
   // y fits what's visible (so zooming in on a week shows that week's climb).
   const valueAt = (s, t) => { let v = null; for (const p of s.pts) { if (p.t <= t) v = p.v; else break; } return v; };
+  // "Levels gained": every line from 0 at the view's left edge, so a 1,000-total player and a 100-total one both show
+  // their climb (user-reported 2026-11-20: one high total flattened everyone else to the floor).
+  const gain = tlg.metric === "gain";
+  for (const s of series) { const b = valueAt(s, x0); s.base = gain ? (b != null ? b : (s.pts.find(p => p.t >= x0) || s.pts[0]).v) : 0; }
+  const pv = (s, v) => v - s.base;
   let lo = Infinity, hi = -Infinity;
   for (const s of series) {
-    const a = valueAt(s, x0); if (a != null) { lo = Math.min(lo, a); hi = Math.max(hi, a); }
-    for (const p of s.pts) if (p.t >= x0 && p.t <= x1) { lo = Math.min(lo, p.v); hi = Math.max(hi, p.v); }
+    const a = valueAt(s, x0); if (a != null) { lo = Math.min(lo, pv(s, a)); hi = Math.max(hi, pv(s, a)); }
+    for (const p of s.pts) if (p.t >= x0 && p.t <= x1) { lo = Math.min(lo, pv(s, p.v)); hi = Math.max(hi, pv(s, p.v)); }
   }
+  if (gain) { lo = Math.min(lo, 0); hi = Math.max(hi, 5); }
   if (!isFinite(lo)) { lo = 0; hi = 100; }
   const pad = Math.max(2, (hi - lo) * 0.08); lo = Math.max(0, Math.floor(lo - pad)); hi = Math.ceil(hi + pad);
   const X = t => L + (t - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   let g = "";
-  const yStep = Math.max(1, Math.ceil((hi - lo) / 5 / 5) * 5);
+  // A round step for about 5 lines (levels: 5, 10, 25...; wealth: 1K, 2.5M...).
+  const rawStep = Math.max(1, (hi - lo) / 5), mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const yStep = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= rawStep) || 10 * mag;
   for (let v = Math.ceil(lo / yStep) * yStep; v <= hi; v += yStep)
-    g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="tlg-grid"/><text x="${L - 8}" y="${Y(v) + 4}" class="tlg-ax" text-anchor="end">${v.toLocaleString()}</text>`;
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" class="tlg-grid"/><text x="${L - 8}" y="${Y(v) + 4}" class="tlg-ax" text-anchor="end">${esc(tlg.metric === "wealth" ? gpShort(v).replace(" gp", "") : (gain && v > 0 ? "+" : "") + v.toLocaleString())}</text>`;
   for (const t of tlTicks(x0, x1, Math.max(3, Math.floor((W - L - R) / 110))))
     g += `<text x="${X(t)}" y="${H - 8}" class="tlg-ax" text-anchor="middle">${esc(tlFmtTime(t, x1 - x0))}</text>`;
   g += `<line x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}" class="tlg-base"/>`;
   g += `<clipPath id="tlgClip"><rect x="${L}" y="0" width="${W - L - R}" height="${H}"/></clipPath><g clip-path="url(#tlgClip)">`;
-  for (const s of series) {
+  const marks = [];
+  series.forEach((s, si) => {
     let d = "", prev = null;
-    for (const p of s.pts) { d += prev == null ? `M${X(p.t)},${Y(p.v)}` : `H${X(p.t)}V${Y(p.v)}`; prev = p; }
+    for (const p of s.pts) { d += prev == null ? `M${X(p.t)},${Y(pv(s, p.v))}` : `H${X(p.t)}V${Y(pv(s, p.v))}`; prev = p; }
     d += `H${X(Math.min(now, x1 + (x1 - x0)))}`;
-    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    g += `<path class="tlg-line" data-si="${si}" d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
     for (const e of s.marks) {
+      if (e.t < x0 || e.t > x1) continue;
       const v = valueAt(s, e.t); if (v == null) continue;
-      g += `<circle cx="${X(e.t)}" cy="${Y(v)}" r="${e.first ? 5.5 : 4.5}" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+      marks.push({ s, si, e, cx: X(e.t), cy: Y(pv(s, v)) });
     }
+  });
+  // Each achievement as its icon in a ring of the player's colour (thicker for a server first).
+  marks.sort((a, b) => tlRank(a.e) - tlRank(b.e));
+  for (const m of marks.slice(0, 80).reverse())
+    g += `<g class="tlg-mark" data-si="${m.si}"><circle cx="${m.cx}" cy="${m.cy}" r="11" fill="var(--card)" stroke="${m.s.color}" stroke-width="${m.e.first ? 3 : 1.8}"/>
+      <image href="${tlIcon(m.e)}" x="${m.cx - 8}" y="${m.cy - 8}" width="16" height="16" preserveAspectRatio="xMidYMid meet"/></g>`;
+  // A short label over the most notable ones, only where it fits (never on top of another).
+  const placed = [];
+  for (const m of marks.slice(0, 40)) {
+    const text = tlShort(m.e); if (!text) continue;
+    const w = text.length * 6.2 + 8, x = Math.min(Math.max(m.cx - w / 2, L), W - R - w), y = m.cy - 30;
+    if (y < 2 || placed.some(p => x < p.x + p.w && p.x < x + w && Math.abs(p.y - y) < 15)) continue;
+    placed.push({ x, y, w });
+    g += `<text x="${x + w / 2}" y="${y + 11}" class="tlg-mlabel" data-si="${m.si}" text-anchor="middle">${esc(text)}</text>`;
+    if (placed.length >= 14) break;
   }
   g += `</g><line id="tlgCross" class="tlg-cross" y1="${T}" y2="${H - B}" style="display:none"/>`;
-  if (series.length <= 4) for (const s of series) {   // direct labels at the right end
-    const v = valueAt(s, Math.min(x1, now)); if (v == null) continue;
-    g += `<text x="${W - R + 6}" y="${Y(v) + 4}" class="tlg-label">${esc(s.display)} ${v.toLocaleString()}</text>`;
+  // Every line's name and value at its right end, pushed apart so they don't overlap.
+  const ends = series.map((s, si) => { const v = valueAt(s, Math.min(x1, now)); return v == null ? null : { s, si, v, y: Y(pv(s, v)) }; })
+    .filter(Boolean).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 15) ends[i].y = ends[i - 1].y + 15;
+  const over = ends.length ? ends[ends.length - 1].y - (H - B - 4) : 0;
+  if (over > 0) ends.forEach(e => e.y -= over);
+  for (const e of ends) {
+    const shown = gain ? `+${(e.v - e.s.base).toLocaleString()}` : fmtV(e.v);
+    g += `<g class="tlg-end" data-si="${e.si}"><circle cx="${W - R + 10}" cy="${e.y}" r="4" fill="${e.s.color}"/>
+      <text x="${W - R + 18}" y="${e.y + 4}" class="tlg-label">${esc(e.s.display.length > 11 ? e.s.display.slice(0, 10) + "…" : e.s.display)} <tspan class="tlg-endv">${esc(shown)}</tspan></text></g>`;
   }
   svg.innerHTML = g;
+  // An item the wiki has no picture for: the collection log's icon instead of an empty ring.
+  svg.querySelectorAll(".tlg-mark image").forEach(img => img.addEventListener("error", () => img.setAttribute("href", wikiFile("Collection_log")), { once: true }));
+  // Pointing at a name (legend or line end) shows that line on its own.
+  const focus = si => { svg.classList.toggle("focus", si != null); svg.querySelectorAll("[data-si]").forEach(n => n.classList.toggle("hl", String(si) === n.dataset.si)); };
+  box.querySelectorAll(".tlg-legend [data-si]").forEach(a => { a.onmouseenter = () => focus(a.dataset.si); a.onmouseleave = () => focus(null); });
+  svg.querySelectorAll(".tlg-end").forEach(n => { n.onmouseenter = () => focus(n.dataset.si); n.onmouseleave = () => focus(null); });
   box.querySelectorAll(".tlg-legend [data-player]").forEach(a => a.onclick = () => openJourney(a.dataset.player));
+  tlgBindMetric(box);
   // Zoom around a time; never wider than everything, never under 10 minutes.
   const zoom = (factor, at) => {
     const span = Math.min(full[1] - full[0], Math.max(600, (x1 - x0) * factor));
@@ -2464,19 +2544,44 @@ function renderTimelineGraph() {
     let best = null, bestD = 144;
     for (const s of series) for (const e of s.marks) {
       const v = valueAt(s, e.t); if (v == null) continue;
-      const d = (X(e.t) - px) ** 2 + (Y(v) - py) ** 2; if (d < bestD) { bestD = d; best = { s, e }; }
+      const d = (X(e.t) - px) ** 2 + (Y(pv(s, v)) - py) ** 2; if (d < bestD) { bestD = d; best = { s, e }; }
     }
     const when = new Date(t * 1000).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     tip.innerHTML = best
       ? `<div class="tlg-tip-head">${esc(new Date(best.e.t * 1000).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</div>
          <div><i style="background:${best.s.color}"></i><b>${esc(best.e.display)}</b> ${esc(best.e.text)}${best.e.first ? " · server first" : ""}</div>`
       : `<div class="tlg-tip-head">${esc(when)}</div>` + series.map(s => [s, valueAt(s, t)]).filter(([, v]) => v != null).sort((a, b) => b[1] - a[1])
-          .map(([s, v]) => `<div><i style="background:${s.color}"></i>${esc(s.display)} <b>${v.toLocaleString()}</b></div>`).join("");
+          .map(([s, v]) => `<div><i style="background:${s.color}"></i>${esc(s.display)} <b>${esc(fmtV(v))}</b>${gain ? ` <span class="hint">(+${(v - s.base).toLocaleString()})</span>` : ""}</div>`).join("");
     tip.style.display = "block";
     const wr = wrap.getBoundingClientRect(), tw = tip.offsetWidth;
     let left = ev.clientX - wr.left + 14; if (left + tw > wr.width) left = ev.clientX - wr.left - tw - 14;
     tip.style.left = Math.max(0, left) + "px"; tip.style.top = Math.max(0, ev.clientY - wr.top - 10) + "px";
   };
+}
+// The few words over an achievement's icon on the graph.
+function tlShort(e) {
+  switch (e.type) {
+    case "quest": return e.quest;
+    case "collection": case "item": return e.itemName;
+    case "kc": return e.count === 1 ? `${e.activity} (1st)` : `${e.activity} ×${e.count}`;
+    case "clue": return e.count === 1 ? `1st ${e.activity.replace("Clue Scrolls (", "").replace(")", "")} clue` : `${e.count} clues`;
+    case "wealth": return gpShort(e.value || 0);
+    default: return "";
+  }
+}
+// Which icons get a label first: server firsts, then notable items by value, quests, wealth, kills, the rest.
+function tlRank(e) {
+  return (e.first ? 0 : 10) + ({ item: 1, quest: 2, wealth: 3, kc: 4, collection: 5, clue: 6 }[e.type] || 9) - Math.min(0.9, (e.value || 0) / 1e9);
+}
+function tlgMetricBar() {
+  return `<span class="tlg-metric">${[["gain", "Levels gained"], ["level", "Total level"], ["wealth", "Wealth"]].map(([k, l]) =>
+    `<button class="${tlg.metric === k ? "on" : ""}" data-m="${k}">${l}</button>`).join("")}</span>`;
+}
+function tlgBindMetric(box) {
+  box.querySelectorAll(".tlg-metric [data-m]").forEach(b => b.onclick = () => {
+    tlg.metric = b.dataset.m; try { localStorage.setItem("tlMetric2", tlg.metric); } catch (e) { /* just this time */ }
+    tlg.key = ""; tlg.view = null; loadTimelineGraph();
+  });
 }
 function tlBindHead(box) { const back = $("tlBack"); if (back) back.onclick = () => { tl.player = null; loadTimeline(); }; }
 window.addEventListener("resize", () => { if (view === "timeline" && tl.mode === "graph" && $("tlgSvg")) renderTimelineGraph(); });

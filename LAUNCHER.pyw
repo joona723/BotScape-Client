@@ -2143,9 +2143,9 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 return self.send(200, {"error": "Server offline"})
         # User-requested 2026-11-19: the Timeline tab (the gateway's achievements feed; same on the web page).
-        if url.path == "/api/timeline":
+        if url.path in ("/api/timeline", "/api/timeline/wealth"):
             try:
-                return self.send(200, gw("GET", "/timeline" + (f"?{url.query}" if url.query else ""), timeout=10) or {})
+                return self.send(200, gw("GET", url.path.replace("/api", "", 1) + (f"?{url.query}" if url.query else ""), timeout=10) or {})
             except Exception:
                 return self.send(200, {"error": "Server offline"})
         if url.path == "/api/quest-journal":
