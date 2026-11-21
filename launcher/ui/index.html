@@ -45,6 +45,49 @@
     background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; }
   .forum-tools button:hover { color: var(--text); }
   .forum-thread { display: grid; gap: 8px; }
+  /* Forum mentions + notifications (user-requested 2026-11-21) */
+  .tab-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: #e5534b;
+    color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; vertical-align: 1px; }
+  .tab-badge[hidden] { display: none; }
+  .forum-bell.on { border-color: var(--gold, #e0a83a); }
+  .forum-search { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border, #3a4250); background: rgba(0,0,0,.2);
+    color: var(--text); font: inherit; font-size: 13px; width: 200px; max-width: 100%; }
+  .forum-row.unread { border-left: 3px solid var(--gold, #e0a83a); }
+  .forum-row.unread .t { color: #fff; }
+  .forum-row[hidden] { display: none; }
+  .forum-new, .forum-yours { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 5px; font-size: 10.5px;
+    font-weight: 700; line-height: 17px; vertical-align: 1px; }
+  .forum-new { background: var(--gold, #e0a83a); color: #1a1205; }
+  .forum-yours { border: 1px solid var(--border, #3a4250); color: var(--muted); font-weight: 600; }
+  .forum-sep { display: flex; align-items: center; gap: 10px; margin: 6px 2px 0; font-size: 11.5px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .forum-sep::after { content: ""; flex: 1; height: 1px; background: var(--border, #3a4250); }
+  .forum-sep.new { color: #e5534b; }
+  .forum-sep.new::after { background: rgba(229,83,75,.5); }
+  .forum-at { padding: 0 3px; border-radius: 4px; background: rgba(88,101,242,.18); color: #aab4ff; font-weight: 600; }
+  .forum-at.me { background: rgba(224,168,58,.2); color: var(--gold, #e0a83a); }
+  .forum-post.mentions-me { border-left: 3px solid var(--gold, #e0a83a); background: linear-gradient(90deg, rgba(224,168,58,.07), transparent 50%); }
+  .forum-post.new { border-color: rgba(229,83,75,.45); }
+  .forum-post.flash { animation: forum-flash 1.6s ease-out; }
+  @keyframes forum-flash { from { box-shadow: 0 0 0 3px var(--gold, #e0a83a); } to { box-shadow: 0 0 0 3px transparent; } }
+  .forum-notes { display: grid; gap: 6px; padding: 12px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--border, #3a4250);
+    background: rgba(0,0,0,.18); max-height: 420px; overflow-y: auto; }
+  .forum-notes-head { display: flex; align-items: center; gap: 8px; }
+  .forum-notes-head .grow { flex: 1; }
+  .forum-note { display: flex; gap: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; font-size: 13px; }
+  .forum-note:hover { background: rgba(255,255,255,.04); }
+  .forum-note.unread { background: rgba(224,168,58,.08); box-shadow: inset 3px 0 0 var(--gold, #e0a83a); }
+  .forum-note .main { flex: 1; min-width: 0; }
+  .forum-note .p { color: var(--muted); font-size: 12.5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .forum-note .p p { margin: 0; display: inline; }
+  .forum-note .m { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .forum-note .forum-av { width: 30px; height: 30px; }
+  .forum-form { position: relative; }
+  .forum-ac { position: absolute; z-index: 30; min-width: 220px; padding: 4px; border-radius: 10px; border: 1px solid var(--border, #3a4250);
+    background: var(--panel, #171b22); box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+  .forum-ac div[data-name] { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+  .forum-ac div[data-name].on, .forum-ac div[data-name]:hover { background: rgba(224,168,58,.15); }
+  .forum-ac .forum-av { width: 22px; height: 22px; font-size: 11px; }
   .forum-form { display: grid; gap: 8px; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold, #e0a83a); margin-bottom: 12px; }
   .forum-form input, .forum-form textarea { width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 8px;
     border: 1px solid var(--border, #3a4250); background: #0f1317; color: var(--text); font: inherit; }
@@ -755,6 +798,12 @@
   .cats { display: flex; gap: 6px; flex-wrap: wrap; }
   table.hs tr.click { cursor: pointer; }
   table.hs tr.click:hover td { background: rgba(255,255,255,.04); }
+  .hs-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 4px; }
+  .hs-pager button { font: inherit; font-size: 13px; min-width: 34px; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    color: var(--text); background: #252c35; border: 1px solid var(--border, #2a323c); }
+  .hs-pager button:hover:not(:disabled) { border-color: var(--gold); }
+  .hs-pager button.on { background: var(--gold); border-color: var(--gold); color: #1a1205; font-weight: 600; }
+  .hs-pager button:disabled { opacity: .4; cursor: default; }
   .hs-group-head { display: flex; align-items: center; gap: 12px; margin: 4px 0 10px; }
   .hs-av { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 7px; }
   /* User-requested 2026-11-10: a free member slot shows in the members list, not only as a button in the stats. */
@@ -951,7 +1000,8 @@ async function saveNews() {
 // --- forum (user-requested 2026-11-09) -----------------------------------------------------------------------------
 // Threads and replies are plain text, always shown through esc() (never as HTML), so nobody can slip in a <script>;
 // the server takes HTML tags out too. Pinned threads first, then the most recently active.
-let forum = { threads: [], me: null, open: null, thread: null, writing: false, cache: {}, editing: null };
+let forum = { threads: [], me: null, open: null, thread: null, writing: false, cache: {}, editing: null,
+  people: [], unread: 0, notes: null, notesSeen: 0, showNotes: false, search: "", scrollTo: null, prevRead: null };
 function forumAv(user, name) {
   const key = String(user || name || "?").toLowerCase();
   return `<span class="forum-av" style="background:${colorFor(key)}">${esc(String(name || key)[0].toUpperCase())}` +
@@ -965,9 +1015,30 @@ function forumWhen(t) {
   if (s < 7 * 86400) return `${Math.floor(s / 86400)} d ago`;
   return new Date(t * 1000).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
+// The time with the full date on hover.
+function forumTime(t) { return `<span title="${esc(new Date(t * 1000).toLocaleString())}">${forumWhen(t)}</span>`; }
 function forumWho(p) { return `${p.admin ? ADMIN_CROWN : ""}<b>${esc(p.author)}</b>`; }
-function forumParas(text) { return String(text).split(/\n\s*\n/).map(par => `<p>${esc(par)}</p>`).join(""); }
+// User-requested (2026-11-21): Discord-like @mentions. "@name" (spaces as _) shows as a chip, gold when it's you.
+function forumKey(s) { return String(s || "").replace(/[\s_\-]/g, "").toLowerCase(); }
+function forumIsMe(name) {
+  const me = forum.me; if (!me) return false;
+  const k = forumKey(name); return k === forumKey(me.user) || k === forumKey(me.name);
+}
+function forumMentionsMe(text) {
+  return [...String(text || "").matchAll(/(?:^|[^\w@])@([A-Za-z0-9_\-]{1,24})/g)].some(m => forumIsMe(m[1]));
+}
+function forumParas(text) {
+  return String(text).split(/\n\s*\n/).map(par => `<p>${esc(par).replace(/(^|[^\w@])@([A-Za-z0-9_\-]{1,24})/g,
+    (all, pre, name) => `${pre}<span class="forum-at ${forumIsMe(name) ? "me" : ""}">@${name}</span>`)}</p>`).join("");
+}
 function forumMine(p) { return !!(forum.me && p.user && p.user.toLowerCase() === String(forum.me.user).toLowerCase()); }
+// Which threads this viewer has read, and up to when (only in this browser: a convenience, like a remembered tab).
+function forumRead() { try { return JSON.parse(localStorage.getItem("forumRead") || "null"); } catch (e) { return null; } }
+function forumSaveRead(read) { try { localStorage.setItem("forumRead", JSON.stringify(read)); } catch (e) { /* private window */ } }
+function forumLastAt(t) { return Math.max(t.at, ...(t.replies || []).map(r => r.at)); }
+function forumUnreadThread(t, read) {
+  return !!(read && t.last > (read[t.id] || 0) && !forumIsMe(t.lastBy) && !(t.replies === 0 && forumMine(t)));
+}
 async function loadForum() {
   try {
     if (forum.open !== null) {
@@ -975,12 +1046,66 @@ async function loadForum() {
       if (r.error && !r.thread) { forum.open = null; return loadForum(); }
       if (forum.open !== r.thread.id) return;   // another thread was opened meanwhile
       forum.thread = forum.cache[r.thread.id] = r.thread; forum.me = r.me;
+      const read = forumRead() || {};
+      if (forum.prevRead === null) forum.prevRead = read[r.thread.id] || 0;
+      read[r.thread.id] = forumLastAt(r.thread); forumSaveRead(read);
     } else {
       const r = await forumGet("");
-      forum.threads = r.threads || []; forum.me = r.me;
+      forum.threads = r.threads || []; forum.me = r.me; forum.people = r.people || [];
+      forumSetUnread(r.unread || 0);
+      // The first visit in this browser: everything that's there now counts as read.
+      if (!forumRead()) forumSaveRead(Object.fromEntries(forum.threads.map(t => [t.id, t.last])));
     }
   } catch (e) { $("forum").innerHTML = `<div class="hint">Couldn't load the forum.</div>`; return; }
   renderForum();
+}
+// The red count on the Forum tab and the bell: unread notifications (checked every minute).
+function forumSetUnread(n) {
+  forum.unread = n;
+  const tab = document.querySelector('.tab[data-view="forum"]');
+  if (tab) {
+    let b = tab.querySelector(".tab-badge");
+    if (!b) { b = document.createElement("span"); b.className = "tab-badge"; tab.appendChild(b); }
+    b.textContent = n > 9 ? "9+" : String(n); b.hidden = !n;
+  }
+  const bell = $("forumBellCount"); if (bell) { bell.textContent = n > 9 ? "9+" : String(n); bell.hidden = !n; }
+}
+async function forumPollNotes() {
+  try { const r = await forumGet("?notifications=1"); forumSetUnread(r.unread || 0); } catch (e) { /* offline: try again later */ }
+}
+setInterval(forumPollNotes, 60000); setTimeout(forumPollNotes, 3000);
+function forumBell() {
+  if (!forum.me) return "";
+  return `<button class="btn small forum-bell ${forum.showNotes ? "on" : ""}" onclick="forumToggleNotes()" title="Replies to you and mentions">🔔 Notifications`
+    + `<span class="tab-badge" id="forumBellCount" ${forum.unread ? "" : "hidden"}>${forum.unread > 9 ? "9+" : forum.unread}</span></button>`;
+}
+async function forumToggleNotes() {
+  forum.showNotes = !forum.showNotes;
+  if (!forum.showNotes) return renderForum();
+  renderForum();
+  try {
+    const r = await forumGet("?notifications=1");
+    forum.notes = r.notifications || []; forum.notesSeen = r.seen || 0;
+  } catch (e) { forum.notes = []; }
+  renderForum();
+  if (forum.unread) { forumSetUnread(0); forumPost({ action: "seen" }); }
+}
+const FORUM_NOTE_TEXT = { mention: "mentioned you in", reply: "replied to your thread", thread: "replied in" };
+function forumNotesPanel() {
+  if (!forum.showNotes) return "";
+  const notes = forum.notes;
+  const rows = notes === null ? `<div class="hint">Loading…</div>` : !notes.length
+    ? `<div class="hint">Nothing yet. Replies to your threads and posts that @mention you show up here.</div>`
+    : notes.map(n => `<div class="forum-note ${n.at > forum.notesSeen ? "unread" : ""}" onclick="forumOpen(${Number(n.thread)}, ${n.reply == null ? "null" : Number(n.reply)})">
+        ${forumAv(n.user, n.author)}<div class="main"><div>${forumWho(n)} ${FORUM_NOTE_TEXT[n.kind] || "replied in"} <b>${esc(n.title)}</b></div>
+        <div class="p">${forumParas(n.preview)}</div><div class="m">${forumTime(n.at)}</div></div></div>`).join("");
+  return `<div class="forum-notes"><div class="forum-notes-head"><b>Notifications</b><span class="grow"></span>
+    <button class="btn small" onclick="forum.showNotes=false;renderForum()">Close</button></div>${rows}</div>`;
+}
+function forumFilter(q) {
+  forum.search = q;
+  const k = q.trim().toLowerCase();
+  document.querySelectorAll("#forum .forum-row").forEach(r => r.hidden = !!k && !r.dataset.text.includes(k));
 }
 function renderForum() {
   const me = forum.me;
@@ -988,56 +1113,149 @@ function renderForum() {
   const form = forum.writing ? `<div class="forum-form">
       <b>New thread</b>
       <input id="forumTitle" maxlength="100" placeholder="Title">
-      <textarea id="forumBody" maxlength="4000" placeholder="What do you want to talk about? A blank line starts a new paragraph."></textarea>
-      <div class="row"><span class="hint">Plain text. Be nice!</span>
+      <textarea id="forumBody" maxlength="4000" placeholder="What do you want to talk about? A blank line starts a new paragraph. Type @ to mention someone."></textarea>
+      <div class="row"><span class="hint">Plain text. Type @ to mention someone. Be nice!</span>
         <button class="btn small" onclick="forum.writing=false;renderForum()">Cancel</button>
         <button class="btn gold small" onclick="forumNewThread()">Post thread</button></div></div>` : "";
-  const rows = forum.threads.map(t => `<div class="forum-row ${t.pinned ? "pinned" : ""}" onclick="forumOpen(${Number(t.id)})"
+  const read = forumRead();
+  const row = t => {
+    const unread = forumUnreadThread(t, read);
+    const text = `${t.title} ${t.preview || ""} ${t.author}`.toLowerCase();
+    return `<div class="forum-row ${t.pinned ? "pinned" : ""} ${unread ? "unread" : ""}" data-text="${esc(text)}" onclick="forumOpen(${Number(t.id)})"
       onmouseenter="forumPrefetch(${Number(t.id)})">
       ${forumAv(t.user, t.author)}
-      <div class="main"><div class="t">${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</div>
+      <div class="main"><div class="t">${unread ? `<span class="forum-new">New</span>` : ""}${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${forumMine(t) ? `<span class="forum-yours">Your thread</span>` : ""}${esc(t.title)}</div>
         ${t.preview ? `<div class="p">${esc(t.preview.replace(/\s+/g, " ").trim())}${t.preview.length >= 160 ? "…" : ""}</div>` : ""}
-        <div class="m">${forumWho(t)} · ${forumWhen(t.at)}${t.replies ? ` · last reply by <b>${esc(t.lastBy)}</b> ${forumWhen(t.last)}` : ""}</div></div>
-      <div class="count"><b>${Number(t.replies)}</b>${t.replies === 1 ? "reply" : "replies"}</div></div>`).join("");
+        <div class="m">${forumWho(t)} · ${forumTime(t.at)}${t.replies ? ` · last reply by <b>${esc(t.lastBy)}</b> ${forumTime(t.last)}` : ""}</div></div>
+      <div class="count"><b>${Number(t.replies)}</b>${t.replies === 1 ? "reply" : "replies"}</div></div>`;
+  };
+  const pinned = forum.threads.filter(t => t.pinned), rest = forum.threads.filter(t => !t.pinned);
+  const rows = pinned.map(row).join("") + (pinned.length && rest.length ? `<div class="forum-sep">Latest</div>` : "") + rest.map(row).join("");
   $("forum").innerHTML = `<div class="forum-top"><h2>Forum</h2><span class="hint">${forum.threads.length} thread${forum.threads.length === 1 ? "" : "s"}</span>
-      <span class="grow"></span>${me ? (forum.writing ? "" : `<button class="btn gold small" onclick="forum.writing=true;renderForum()">+ New thread</button>`)
-        : `<button class="btn small" onclick="websiteSignIn()">Sign in to post</button>`}</div>${form}
+      <span class="grow"></span>${forum.threads.length > 5 ? `<input class="forum-search" placeholder="Search threads…" value="${esc(forum.search)}" oninput="forumFilter(this.value)">` : ""}
+      ${forumBell()}${me ? (forum.writing ? "" : `<button class="btn gold small" onclick="forum.writing=true;renderForum()">+ New thread</button>`)
+        : `<button class="btn small" onclick="websiteSignIn()">Sign in to post</button>`}</div>${forumNotesPanel()}${form}
     <div class="forum-list">${rows || `<div class="hint">No threads yet. Start the first one!</div>`}</div>`;
+  if (forum.search) forumFilter(forum.search);
 }
 function renderForumThread() {
   const t = forum.thread, me = forum.me, admin = !!(me && me.admin);
   // User-requested: edit your own threads and replies (admins any of them).
-  const tools = (p, reply) => (admin || forumMine(p)) ? `<button onclick="forumEditStart(${reply ? Number(p.id) : 0})">Edit</button>` +
-    `<button onclick="forumDelete(${Number(t.id)}, ${reply ? Number(p.id) : 0})">Delete</button>` : "";
-  const op = `<article class="forum-post op">${forumAv(t.user, t.author)}<div class="main">
+  const tools = (p, reply) => (me ? `<button onclick="forumReplyTo('${esc(String(p.author).replace(/[^\w \-]/g, ""))}')" title="Reply and mention ${esc(p.author)}">Reply</button>` : "")
+    + ((admin || forumMine(p)) ? `<button onclick="forumEditStart(${reply ? Number(p.id) : 0})">Edit</button>` +
+    `<button onclick="forumDelete(${Number(t.id)}, ${reply ? Number(p.id) : 0})">Delete</button>` : "");
+  const loaded = t.body != null;
+  const opMe = loaded && !forumMine(t) && (forumMentionsMe(t.body) || forumMentionsMe(t.title));
+  const op = `<article class="forum-post op ${opMe ? "mentions-me" : ""}" id="fp-op">${forumAv(t.user, t.author)}<div class="main">
       <h3>${t.pinned ? `<span class="forum-pin">📌 Pinned</span>` : ""}${esc(t.title)}</h3>
-      <div class="m">${forumWho(t)} · ${forumWhen(t.at)}${t.edited ? " · edited" : ""}
+      <div class="m">${forumWho(t)} · ${forumTime(t.at)}${t.edited ? " · edited" : ""}
         <span class="forum-tools">${admin ? `<button onclick="forumPin(${Number(t.id)}, ${t.pinned ? "false" : "true"})">${t.pinned ? "Unpin" : "Pin to top"}</button>` : ""}${tools(t, false)}</span></div>
-      <div class="body">${t.body == null ? `<p class="hint">Loading…</p>` : forum.editing === 0 ? forumEditForm(t, true) : forumParas(t.body)}</div></div></article>`;
-  const replies = (t.replies || []).map(r => `<article class="forum-post">${forumAv(r.user, r.author)}<div class="main">
-      <div class="m">${forumWho(r)} · ${forumWhen(r.at)}${r.edited ? " · edited" : ""}<span class="forum-tools">${tools(r, true)}</span></div>
-      <div class="body">${forum.editing === r.id ? forumEditForm(r, false) : forumParas(r.body)}</div></div></article>`).join("");
+      <div class="body">${!loaded ? `<p class="hint">Loading…</p>` : forum.editing === 0 ? forumEditForm(t, true) : forumParas(t.body)}</div></div></article>`;
+  // Replies since this viewer's last visit get a "New" line before them (not their own).
+  const since = forum.prevRead || 0;
+  let divider = false;
+  const replies = (t.replies || []).map(r => {
+    const isNew = since > 0 && r.at > since && !forumMine(r);
+    const line = isNew && !divider ? (divider = true, `<div class="forum-sep new">New replies</div>`) : "";
+    const toMe = !forumMine(r) && forumMentionsMe(r.body);
+    return `${line}<article class="forum-post ${isNew ? "new" : ""} ${toMe ? "mentions-me" : ""}" id="fp-${Number(r.id)}">${forumAv(r.user, r.author)}<div class="main">
+      <div class="m">${forumWho(r)} · ${forumTime(r.at)}${r.edited ? " · edited" : ""}<span class="forum-tools">${tools(r, true)}</span></div>
+      <div class="body">${forum.editing === r.id ? forumEditForm(r, false) : forumParas(r.body)}</div></div></article>`;
+  }).join("");
+  const draft = $("forumReply") ? $("forumReply").value : "";
   const box = me ? `<div class="forum-form" style="margin:4px 0 0">
-      <textarea id="forumReply" maxlength="2000" placeholder="Write a reply…"></textarea>
-      <div class="row"><span class="hint">Plain text.</span><button class="btn gold small" onclick="forumReply(${Number(t.id)})">Reply</button></div></div>`
+      <textarea id="forumReply" maxlength="2000" placeholder="Write a reply… Type @ to mention someone."></textarea>
+      <div class="row"><span class="hint">Plain text. Type @ to mention someone.</span><button class="btn gold small" onclick="forumReply(${Number(t.id)})">Reply</button></div></div>`
     : `<button class="btn small" onclick="websiteSignIn()">Sign in to reply</button>`;
+  const count = (t.replies || []).length;
   $("forum").innerHTML = `<div class="forum-top"><button class="btn small" onclick="forum.open=null;forum.thread=null;loadForum()">‹ All threads</button>
-      <span class="hint">${(t.replies || []).length} replies</span></div>
+      <span class="hint">${count} ${count === 1 ? "reply" : "replies"}</span><span class="grow"></span>${forumBell()}</div>${forumNotesPanel()}
     <div class="forum-thread">${op}${replies}${box}</div>`;
+  if ($("forumReply") && draft) $("forumReply").value = draft;   // a refresh keeps what you were writing
+  if (loaded && forum.scrollTo !== null) {
+    const to = forum.scrollTo, posts = document.querySelectorAll("#forum .forum-post");
+    const el = to === "op" ? $("fp-op") : to === "new" ? document.querySelector("#forum .forum-sep.new")
+      : to === "last" ? posts[posts.length - 1] : $("fp-" + to);
+    forum.scrollTo = null;
+    if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("flash"); }
+  }
 }
 // User-reported: opening a thread showed nothing until it had loaded. It opens at once now (what the list knows, or
-// the copy from the last visit or a hover), and the full thread fills in when it arrives.
-function forumOpen(id) {
-  forum.open = id; forum.editing = null;
+// the copy from the last visit or a hover), and the full thread fills in when it arrives. From a notification it
+// scrolls to that reply; otherwise to the first new reply, if any.
+function forumOpen(id, reply) {
+  forum.open = id; forum.editing = null; forum.prevRead = null; forum.showNotes = false;
+  forum.scrollTo = reply === undefined ? "new" : reply === null ? "op" : reply;
   const known = forum.threads.find(t => t.id === id);
   forum.thread = forum.cache[id] || (known ? { ...known, body: null, replies: [] } : null);
-  if (forum.thread) renderForum();
+  if (forum.thread) { forum.prevRead = (forumRead() || {})[id] || 0; renderForum(); }
   loadForum();
 }
+// The Reply button on a post: "@name " in the reply box, ready to write.
+function forumReplyTo(name) {
+  const box = $("forumReply"); if (!box) return;
+  const tag = "@" + name.replace(/ /g, "_") + " ";
+  if (!box.value.includes(tag)) box.value = (box.value && !box.value.endsWith(" ") && !box.value.endsWith("\n") ? box.value + " " : box.value) + tag;
+  box.focus(); box.selectionStart = box.selectionEnd = box.value.length;
+  box.scrollIntoView({ block: "center" });
+}
+// Typing "@" in any forum text box offers the people in this thread first, then everyone who has posted.
+function forumAcNames(q) {
+  const k = forumKey(q), seen = new Set(), out = [];
+  const add = n => {
+    const key = forumKey(n);
+    if (!n || seen.has(key) || !key.startsWith(k) || forumIsMe(n)) return;
+    seen.add(key); out.push(n);
+  };
+  if (forum.open !== null && forum.thread) { [...(forum.thread.replies || [])].reverse().forEach(r => add(r.author)); add(forum.thread.author); }
+  (forum.people || []).forEach(p => add(p.name));
+  return out.slice(0, 6);
+}
+function forumAcHide() { const ac = $("forumAc"); if (ac) ac.remove(); }
+function forumAcShow(ta) {
+  const m = ta.value.slice(0, ta.selectionStart).match(/(?:^|[^\w@])@([A-Za-z0-9_\-]{0,24})$/);
+  const names = m ? forumAcNames(m[1]) : [];
+  if (!names.length) return forumAcHide();
+  let ac = $("forumAc");
+  if (!ac || ac.dataset.for !== ta.id) {
+    forumAcHide();
+    ac = document.createElement("div"); ac.id = "forumAc"; ac.className = "forum-ac"; ac.dataset.for = ta.id;
+    ta.parentElement.appendChild(ac);
+  }
+  ac.style.left = ta.offsetLeft + "px"; ac.style.top = (ta.offsetTop + ta.offsetHeight + 4) + "px";
+  const sel = Math.min(Number(ac.dataset.sel || 0), names.length - 1);
+  ac.dataset.sel = sel;
+  ac.innerHTML = names.map((n, i) => `<div class="${i === sel ? "on" : ""}" data-name="${esc(n)}">${forumAv(null, n)}<span>${esc(n)}</span></div>`).join("");
+  ac.querySelectorAll("[data-name]").forEach(el => el.onmousedown = e => { e.preventDefault(); forumAcPick(ta, el.dataset.name); });
+}
+function forumAcPick(ta, name) {
+  const before = ta.value.slice(0, ta.selectionStart), after = ta.value.slice(ta.selectionStart);
+  const start = before.lastIndexOf("@");
+  const tag = "@" + name.replace(/ /g, "_") + " ";
+  let rest = after.replace(/^[A-Za-z0-9_\-]*/, "");   // the rest of a name typed half-way
+  if (rest.startsWith(" ")) rest = rest.slice(1);
+  ta.value = before.slice(0, start) + tag + rest;
+  ta.selectionStart = ta.selectionEnd = start + tag.length;
+  ta.focus(); forumAcHide();
+}
+document.addEventListener("input", e => { if (e.target.closest && e.target.closest("#forum") && e.target.tagName === "TEXTAREA") forumAcShow(e.target); });
+document.addEventListener("click", e => { if (!e.target.closest || !e.target.closest(".forum-ac")) forumAcHide(); });
+document.addEventListener("keydown", e => {
+  const ac = $("forumAc"), ta = e.target;
+  if (!ac || ta.id !== ac.dataset.for) return;
+  const items = [...ac.querySelectorAll("[data-name]")];
+  let sel = Number(ac.dataset.sel || 0);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault(); sel = (sel + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+    ac.dataset.sel = sel; items.forEach((el, i) => el.classList.toggle("on", i === sel));
+  } else if (e.key === "Enter" || e.key === "Tab") {
+    e.preventDefault(); forumAcPick(ta, items[sel].dataset.name);
+  } else if (e.key === "Escape") forumAcHide();
+});
 function forumEditForm(p, isThread) {
   return `<div class="forum-form" style="margin:8px 0 0">${isThread ? `<input id="forumEditTitle" maxlength="100" value="${esc(p.title)}">` : ""}
     <textarea id="forumEditBody" maxlength="${isThread ? 4000 : 2000}">${esc(p.body)}</textarea>
-    <div class="row"><span class="hint">Plain text.</span><button class="btn small" onclick="forum.editing=null;renderForum()">Cancel</button>
+    <div class="row"><span class="hint">Plain text. Type @ to mention someone.</span><button class="btn small" onclick="forum.editing=null;renderForum()">Cancel</button>
       <button class="btn gold small" onclick="forumEditSave(${Number(forum.thread.id)}, ${isThread ? 0 : Number(p.id)})">Save</button></div></div>`;
 }
 function forumEditStart(reply) { forum.editing = reply; renderForum(); }
@@ -1062,10 +1280,15 @@ async function forumDo(body, then) {
 function forumNewThread() {
   forumDo({ action: "thread", title: $("forumTitle").value, body: $("forumBody").value }, r => {
     forum.writing = false;
-    if (r && r.thread) forum.open = r.thread;
+    if (r && r.thread) { forum.open = r.thread; forum.prevRead = null; }
   });
 }
-function forumReply(id) { forumDo({ action: "reply", thread: id, body: $("forumReply").value }); }
+function forumReply(id) {
+  forumDo({ action: "reply", thread: id, body: $("forumReply").value }, () => {
+    $("forumReply").value = "";
+    forum.scrollTo = "last";
+  });
+}
 function forumPin(id, pinned) { forumDo({ action: "pin", thread: id, pinned }); }
 function forumDelete(id, reply) {
   if (!confirm(reply ? "Delete this reply?" : "Delete this whole thread?")) return;
@@ -2083,7 +2306,26 @@ async function pollOutput() {
 }
 
 // --- highscores ---------------------------------------------------------------------------------
-let hsData = null, hsSkill = null, hsLoaded = 0, hsGroup = null;
+let hsData = null, hsSkill = null, hsLoaded = 0, hsGroup = null, hsPage = 0;
+// User-requested: the highscores' lists in pages of 25 (the server sends up to 100 rows); ranks stay the whole list's.
+const HS_PER_PAGE = 25;
+function hsPaged(all) {
+  const pages = Math.max(1, Math.ceil(all.length / HS_PER_PAGE));
+  hsPage = Math.min(Math.max(0, hsPage), pages - 1);
+  const start = hsPage * HS_PER_PAGE;
+  return { rows: all.slice(start, start + HS_PER_PAGE), start, pages };
+}
+function hsPager(pages) {
+  if (pages <= 1) return "";
+  let nums = "", last = -1;
+  for (let p = 0; p < pages; p++) {
+    if (p !== 0 && p !== pages - 1 && Math.abs(p - hsPage) > 1) continue;
+    if (p - last > 1) nums += `<span class="hint">…</span>`;
+    nums += `<button class="${p === hsPage ? "on" : ""}" data-hs-page="${p}">${p + 1}</button>`; last = p;
+  }
+  return `<div class="hs-pager"><button data-hs-page="${hsPage - 1}" ${hsPage ? "" : "disabled"}>‹ Prev</button>${nums}`
+    + `<button data-hs-page="${hsPage + 1}" ${hsPage < pages - 1 ? "" : "disabled"}>Next ›</button></div>`;
+}
 async function loadHiscores() {
   if (Date.now() - hsLoaded < 15000 && hsData) return renderHiscores();
   try { hsData = await (await fetch("/api/hiscores")).json(); hsLoaded = Date.now(); } catch (e) { hsData = { error: "Server offline" }; }
@@ -2126,36 +2368,36 @@ function renderHiscores() {
     + (clues.length ? `<optgroup label="Clue scrolls">${clues.map(opt).join("")}</optgroup>` : "")
     + (bosses.length ? `<optgroup label="Bosses &amp; activities">${bosses.map(opt).join("")}</optgroup>` : "")
     + `</select>`);
-  document.querySelectorAll("#hsSkills [data-s], #hsActivities [data-s]").forEach(b => b.onclick = () => { hsSkill = b.dataset.s || null; hsGroup = null; renderHiscores(); });
-  $("hsActivity").onchange = e => { hsSkill = e.target.value || null; renderHiscores(); };
+  document.querySelectorAll("#hsSkills [data-s], #hsActivities [data-s]").forEach(b => b.onclick = () => { hsSkill = b.dataset.s || null; hsGroup = null; hsPage = 0; renderHiscores(); });
+  $("hsActivity").onchange = e => { hsSkill = e.target.value || null; hsPage = 0; renderHiscores(); };
   if (!hsData || hsData.error) {
     $("hiscores").innerHTML = `<div class="empty"><img src="/ui/empty-offline.svg" onerror="this.remove()" alt=""><h3>Highscores unavailable</h3><div>${esc(hsData?.error || "")}</div></div>`;
     return;
   }
   const me = (data?.main || "").toLowerCase();
   const medal = i => i + 1;   // user-requested: plain rank numbers, no medals
-  const counted = (rows, head, empty) => `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">${head}</th></tr>`
-    + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+  const counted = (all, head, empty) => { const { rows, start, pages } = hsPaged(all); return `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">${head}</th></tr>`
+    + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(start + i)}</td><td>${hsName(r)}</td>
       <td class="num">${r.count.toLocaleString()}</td></tr>`).join("")
-    + `</table>` + (rows.length ? "" : `<div class="empty"><h3>${empty}</h3></div>`);
+    + `</table>` + hsPager(pages) + (all.length ? "" : `<div class="empty"><h3>${empty}</h3></div>`); };
   if (!hsSkill) {
-    const rows = hsData.overall || [];
+    const all = hsData.overall || [], { rows, start, pages } = hsPaged(all);
     $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th>Group</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
-      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(start + i)}</td><td>${hsName(r)}</td>
         <td>${r.groupName ? esc(r.groupName) : `<span class="hint">${esc(capName(r.group || r.name))}'s group</span>`}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("")
-      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No players yet</h3></div>`);
+      + `</table>` + hsPager(pages) + (all.length ? "" : `<div class="empty"><h3>No players yet</h3></div>`);
   } else if (hsSkill === "@groups") {
     $("hiscores").innerHTML = hiscoreGroups(hsData, me);
     document.querySelectorAll("#hiscores [data-group]").forEach(r => r.onclick = () => { hsGroup = r.dataset.group; renderHiscores(); });
     const back = $("hsBack"); if (back) back.onclick = () => { hsGroup = null; renderHiscores(); };
   } else if (hsSkill === "@wealth") {
     // User-requested (like the web page): the wealthiest groups (everything they own at GE guide prices, the group bank too).
-    const rows = hsData.wealth || [];
+    const all = hsData.wealth || [], { rows, start, pages } = hsPaged(all);
     const mine = ((hsData.overall || []).find(r => r.name.toLowerCase() === me)?.group || me).toLowerCase();
     $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Group</th><th class="num">Members</th><th class="num">Wealth</th></tr>`
-      + rows.map((g, i) => `<tr class="${g.key === mine ? "me" : ""}"><td class="rank">${i + 1}</td><td>${esc(g.name)}</td>
+      + rows.map((g, i) => `<tr class="${g.key === mine ? "me" : ""}"><td class="rank">${start + i + 1}</td><td>${esc(g.name)}</td>
         <td class="num">${g.members}</td><td class="num" title="${g.value.toLocaleString()} gp">${gpShort(g.value)}</td></tr>`).join("")
-      + `</table>` + (rows.length ? `<div class="hint" style="margin-top:8px">Everything the group owns: backpacks, gear and banks.</div>`
+      + `</table>` + hsPager(pages) + (all.length ? `<div class="hint" style="margin-top:8px">Everything the group owns: backpacks, gear and banks.</div>`
         : `<div class="empty"><h3>${hsData.wealth ? "No wealth yet" : "The server doesn't rank wealth yet"}</h3></div>`);
   } else if (hsSkill === "@log") {
     $("hiscores").innerHTML = counted(hsData.collection || [], "Collection Log", "No one has logged an item yet");
@@ -2163,13 +2405,16 @@ function renderHiscores() {
     const act = hsSkill.slice(1);
     $("hiscores").innerHTML = counted((hsData.activities || {})[act] || [], act.startsWith("Clue Scrolls") ? "Completed" : "Kill count", `No scores for ${esc(act)} yet`);
   } else {
-    const rows = (hsData.skills || {})[hsSkill] || [];
+    const all = (hsData.skills || {})[hsSkill] || [], { rows, start, pages } = hsPaged(all);
     $("hiscores").innerHTML = `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Level</th><th class="num">XP</th></tr>`
-      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(i)}</td><td>${hsName(r)}</td>
+      + rows.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${medal(start + i)}</td><td>${hsName(r)}</td>
         <td class="num">${r.level}</td><td class="num">${r.xp.toLocaleString()}</td></tr>`).join("")
-      + `</table>` + (rows.length ? "" : `<div class="empty"><h3>No one has trained ${esc(hsSkill)} yet</h3></div>`);
+      + `</table>` + hsPager(pages) + (all.length ? "" : `<div class="empty"><h3>No one has trained ${esc(hsSkill)} yet</h3></div>`);
   }
   hsJourneyLinks();
+  document.querySelectorAll("#hiscores [data-hs-page]").forEach(b => b.onclick = () => {
+    hsPage = +b.dataset.hsPage; renderHiscores(); $("hiscores").scrollIntoView({ block: "start" });
+  });
   if (hsSkill === "@groups" && hsGroup) tlRecent("hsGroupRecent", "group=" + encodeURIComponent(hsGroup), 3);
 }
 
@@ -2628,10 +2873,11 @@ function hiscoreGroups(hs, me) {
       + `<table class="hs"><tr><th>Rank</th><th>Player</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
       + g.members.map((r, i) => `<tr class="${r.name.toLowerCase() === me ? "me" : ""}"><td class="rank">${i + 1}</td><td>${hsName(r)}</td><td class="num">${r.totalLevel.toLocaleString()}</td><td class="num">${r.totalXp.toLocaleString()}</td></tr>`).join("") + `</table>`;
   }
+  const { rows, start, pages } = hsPaged(list);
   return `<table class="hs"><tr><th>Rank</th><th>Group</th><th class="num">Members</th><th class="num">Total level</th><th class="num">Total XP</th></tr>`
-    + list.map((g, i) => `<tr class="click ${g.mine ? "me" : ""}" data-group="${esc(g.key)}" title="Show ${esc(g.name)}'s players"><td class="rank">${i + 1}</td><td>${esc(g.name)}</td>
+    + rows.map((g, i) => `<tr class="click ${g.mine ? "me" : ""}" data-group="${esc(g.key)}" title="Show ${esc(g.name)}'s players"><td class="rank">${start + i + 1}</td><td>${esc(g.name)}</td>
       <td class="num">${g.members.length}</td><td class="num">${g.level.toLocaleString()}</td><td class="num">${g.xp.toLocaleString()}</td></tr>`).join("")
-    + `</table>` + (list.length ? "" : `<div class="empty"><h3>No groups yet</h3></div>`);
+    + `</table>` + hsPager(pages) + (list.length ? "" : `<div class="empty"><h3>No groups yet</h3></div>`);
 }
 
 // --- header, settings, setup -------------------------------------------------------------------
