@@ -637,6 +637,18 @@
     color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
   .tl-scope button.on, .tl-types button.on { background: #221a0c; border-color: var(--gold-dim); color: var(--gold); }
   .tl-scope button:disabled { opacity: .45; cursor: default; }
+  /* User-requested 2026-11-21 ("fewer buttons"): Who and Line are menus, Show is one dropdown of checkboxes. */
+  .tl-sel { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+    font: inherit; font-size: 12.5px; cursor: pointer; }
+  .tl-show { position: relative; }
+  .tl-show summary { list-style: none; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+    color: var(--text); font-size: 12.5px; cursor: pointer; user-select: none; }
+  .tl-show summary::-webkit-details-marker { display: none; }
+  .tl-show summary::after { content: " ▾"; color: var(--muted); }
+  .tl-show-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 180px; padding: 6px; border: 1px solid var(--border);
+    border-radius: 10px; background: var(--panel); box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .tl-show-menu label { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .tl-show-menu label:hover { background: var(--card); }
   .tl-day { margin: 18px 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
   .tl-list { max-width: 900px; border-left: 2px solid var(--border); margin-left: 12px; }
   .tl-row { display: flex; align-items: center; gap: 10px; padding: 7px 12px 7px 0; margin-left: -13px; }
@@ -851,7 +863,7 @@
         <button class="tab" data-view="skills"><img class="tab-icon" src="/character-16.png" alt="">Character</button>
         <button class="tab" data-view="bank"><img class="tab-icon" src="/group-bank-16.png" onerror="this.src='/bank-16.png'" alt="">Group bank <span class="count" id="bankCount"></span></button>
         <button class="tab" data-view="hiscores"><img class="tab-icon" src="/hiscores-16.png" alt="">Highscores</button>
-        <button class="tab" data-view="timeline"><img class="tab-icon" src="/hiscores-16.png" alt="">Timeline</button>
+        <button class="tab" data-view="timeline"><img class="tab-icon" src="/timeline-16.png" onerror="this.onerror=null;this.src='/hiscores-16.png'" alt="">Timeline</button>
         <button class="tab" data-view="output"><img class="tab-icon" src="/output-16.png" alt="">Output</button>
         <button class="tab" data-view="news" style="margin-left:auto"><img class="tab-icon" src="/output-16.png" alt="">News</button>
         <button class="tab" data-view="forum"><img class="tab-icon" src="/output-16.png" alt="">Forum</button>
@@ -882,7 +894,7 @@
         <div id="hiscores"></div>
       </section>
       <section class="view" id="view-timeline">
-        <div class="toolbar tl-bar"><div class="tl-grp"><span class="tl-lab">View</span><div class="tl-scope" id="tlMode"></div></div><div class="tl-grp"><span class="tl-lab">Who</span><div class="tl-scope" id="tlScope"></div></div><div class="tl-grp"><span class="tl-lab">Show</span><div class="tl-types" id="tlTypes"></div></div></div>
+        <div class="toolbar tl-bar"><div class="tl-grp"><span class="tl-lab">View</span><div class="tl-scope" id="tlMode"></div></div><div class="tl-grp"><span class="tl-lab">Who</span><div class="tl-scope" id="tlScope"></div></div><div class="tl-grp" id="tlLineGrp"><span class="tl-lab">Line</span><div class="tl-scope" id="tlLine"></div></div><div class="tl-grp"><span class="tl-lab">Show</span><div class="tl-types" id="tlTypes"></div></div></div>
         <div id="timeline"></div>
       </section>
     </main>
@@ -2505,17 +2517,35 @@ function tlBar() {
   const scope = $("tlScope"), types = $("tlTypes"), mode = $("tlMode");
   const setHtml = (el, html) => { if (el && el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; } };
   setHtml(mode, [["graph", "Graph"], ["list", "List"]].map(([k, label]) => `<button class="${tl.mode === k ? "on" : ""}" data-mode="${k}">${label}</button>`).join(""));
-  setHtml(scope, [["all", "Everyone"], ["group", "My group"]].map(([k, label]) =>
-    `<button class="${!tl.player && tl.scope === k ? "on" : ""}" data-scope="${k}" ${k === "group" && !tlMe() ? "disabled" : ""}>${label}</button>`).join(""));
-  setHtml(types, TL_TYPES.map(([k, label]) => `<button class="${tl.types.has(k) ? "on" : ""}" data-type="${k}">${label}</button>`).join(""));
+  // Who: a menu (Everyone, My group, and the player whose journey is open).
+  setHtml(scope, `<select class="tl-sel" id="tlScopeSel">${[["all", "Everyone"], ["group", "My group"]].map(([k, label]) =>
+    `<option value="${k}" ${!tl.player && tl.scope === k ? "selected" : ""} ${k === "group" && !tlMe() ? "disabled" : ""}>${label}</option>`).join("")}${tl.player ? `<option value="player" selected>${esc(tl.player)}</option>` : ""}</select>`);
+  // Line (graph only): a menu too.
+  const lineGrp = $("tlLineGrp");
+  if (lineGrp) lineGrp.style.display = tl.mode === "graph" ? "" : "none";
+  setHtml($("tlLine"), `<select class="tl-sel" id="tlLineSel">${TLG_METRICS.map(([k, l]) => `<option value="${k}" ${tlg.metric === k ? "selected" : ""}>${l}</option>`).join("")}</select>`);
+  // Show: one dropdown of checkboxes; none ticked = everything.
+  const shown = TL_TYPES.filter(([k]) => tl.types.has(k));
+  const showLabel = !shown.length || shown.length === TL_TYPES.length ? "All" : shown.length === 1 ? shown[0][1] : `${shown.length} kinds`;
+  const wasOpen = !!(types.querySelector("details") || {}).open;
+  setHtml(types, `<details class="tl-show"><summary>${showLabel}</summary><div class="tl-show-menu">${TL_TYPES.map(([k, label]) =>
+    `<label><input type="checkbox" data-type="${k}" ${!tl.types.size || tl.types.has(k) ? "checked" : ""}>${label}</label>`).join("")}</div></details>`);
+  if (wasOpen) types.querySelector("details").open = true;
   mode.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
     tl.mode = b.dataset.mode; try { localStorage.setItem("tlMode", tl.mode); } catch (e) { /* just this time */ }
     if (tl.mode === "list") tl.key = "";
     loadTimeline();
   });
-  scope.querySelectorAll("[data-scope]").forEach(b => b.onclick = () => { tl.scope = b.dataset.scope; tl.player = null; loadTimeline(); });
-  types.querySelectorAll("[data-type]").forEach(b => b.onclick = () => {
-    tl.types.has(b.dataset.type) ? tl.types.delete(b.dataset.type) : tl.types.add(b.dataset.type);
+  $("tlScopeSel").onchange = e => { if (e.target.value === "player") return; tl.scope = e.target.value; tl.player = null; loadTimeline(); };
+  $("tlLineSel").onchange = e => {
+    tlg.metric = e.target.value; try { localStorage.setItem("tlMetric2", tlg.metric); } catch (err) { /* just this time */ }
+    tlg.key = ""; tlg.view = null; loadTimelineGraph();
+  };
+  types.querySelectorAll("[data-type]").forEach(b => b.onchange = () => {
+    // From "everything" (none picked), unticking one means all the others.
+    if (!tl.types.size) TL_TYPES.forEach(([k]) => tl.types.add(k));
+    b.checked ? tl.types.add(b.dataset.type) : tl.types.delete(b.dataset.type);
+    if (tl.types.size === TL_TYPES.length) tl.types.clear();
     if (tl.mode === "graph") { tlBar(); renderTimelineGraph(); } else loadTimeline();
   });
 }
@@ -2573,6 +2603,8 @@ async function tlRecent(target, params, n) {
 // drag to pan, double-click to see it all. The list is still there (the "List" switch) as the table view.
 // Colours: the dark categorical palette, validated on the hub's #161a20 (CVD worst 8.4, normal-vision 19.3, all >= 3:1).
 const TL_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+// Past the 8 palette colours (Everyone draws every player): hues spread by the golden angle.
+const tlColor = i => i < TL_COLORS.length ? TL_COLORS[i] : `hsl(${Math.round((i * 137.508) % 360)} 62% 62%)`;
 const TL_MARK_TYPES = new Set(["quest", "collection", "kc", "clue", "item", "wealth"]);
 // User-requested 2026-11-20: the graph shows total level or total wealth (each group's, every 10 minutes).
 let tlg = { key: "", events: [], wealth: [], loading: false, error: "", view: null, drag: null, at: 0,
@@ -2603,7 +2635,7 @@ async function loadTimelineGraph() {
       // The player's group (their events say it), else My group's, else the 8 wealthiest.
       const g = tl.player ? ((all[0] && all[0].group) || ((hsData && hsData.overall || []).find(r => r.name.toLowerCase() === tl.player.toLowerCase()) || {}).group || tl.player)
         : tl.scope === "group" && tlMe() ? tlGroupKey() : null;
-      const w = await tlWealthFetch(g ? "group=" + encodeURIComponent(g.toLowerCase()) : "top=8");
+      const w = await tlWealthFetch(g ? "group=" + encodeURIComponent(g.toLowerCase()) : "top=20");
       tlg.wealth = (w && w.groups) || [];
     }
     await scores;
@@ -2619,8 +2651,8 @@ function tlSeries() {
       name: g.key, display: g.name, group: true, pts: g.points.map(([t, v]) => ({ t, v })),
       marks: tlg.events.filter(e => e.group === g.key && TL_MARK_TYPES.has(e.type) && (!tl.types.size || tl.types.has(e.type))), count: g.points.length,
     }));
-    series = series.slice(0, 8).sort((a, b) => a.display.localeCompare(b.display));
-    series.forEach((s, i) => s.color = TL_COLORS[i]);
+    series = series.sort((a, b) => a.display.localeCompare(b.display));
+    series.forEach((s, i) => s.color = tlColor(i));
     return { series, more: 0 };
   }
   const byName = new Map();
@@ -2644,11 +2676,14 @@ function tlSeries() {
     const marks = s.events.filter(e => TL_MARK_TYPES.has(e.type) && (!tl.types.size || tl.types.has(e.type)));
     return { ...s, pts, marks, count: s.events.length };
   }).filter(Boolean);
-  const more = Math.max(0, series.length - 8);
-  // The 8 most active; colours by name order among them (a player keeps theirs while the set stays the same).
-  series = series.sort((a, b) => b.count - a.count).slice(0, 8).sort((a, b) => a.display.localeCompare(b.display));
-  series.forEach((s, i) => s.color = TL_COLORS[i]);
-  return { series, more };
+  // Everyone (user-requested 2026-11-21: it showed only the 8 most active); the 8 most active keep the palette's
+  // colours, by name order among them, the rest get spread hues.
+  const top = new Set(series.slice().sort((a, b) => b.count - a.count).slice(0, TL_COLORS.length));
+  const byNameOrder = list => list.sort((a, b) => a.display.localeCompare(b.display));
+  series = byNameOrder(series.filter(s => top.has(s))).concat(byNameOrder(series.filter(s => !top.has(s))));
+  series.forEach((s, i) => s.color = tlColor(i));
+  series = byNameOrder(series);
+  return { series, more: 0 };
 }
 function tlFmtTime(t, span) {
   const d = new Date(t * 1000);
@@ -2725,7 +2760,7 @@ function renderTimelineGraph() {
     let d = "", prev = null;
     for (const p of s.pts) { d += prev == null ? `M${X(p.t)},${Y(pv(s, p.v))}` : `H${X(p.t)}V${Y(pv(s, p.v))}`; prev = p; }
     d += `H${X(Math.min(now, x1 + (x1 - x0)))}`;
-    g += `<path class="tlg-line" data-si="${si}" d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    g += `<path class="tlg-line" data-si="${si}" d="${d}" fill="none" stroke="${s.color}" stroke-width="${series.length > 12 ? 1.6 : 2.5}" stroke-linejoin="round" stroke-linecap="round"/>`;
     for (const e of s.marks) {
       if (e.t < x0 || e.t > x1) continue;
       const v = valueAt(s, e.t); if (v == null) continue;
@@ -2750,7 +2785,7 @@ function renderTimelineGraph() {
   g += `</g><line id="tlgCross" class="tlg-cross" y1="${T}" y2="${H - B}" style="display:none"/>`;
   // Every line's name and value at its right end, pushed apart so they don't overlap.
   const ends = series.map((s, si) => { const v = valueAt(s, Math.min(x1, now)); return v == null ? null : { s, si, v, y: Y(pv(s, v)) }; })
-    .filter(Boolean).sort((a, b) => a.y - b.y);
+    .filter(Boolean).sort((a, b) => a.y - b.y).slice(0, 14);
   for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 15) ends[i].y = ends[i - 1].y + 15;
   const over = ends.length ? ends[ends.length - 1].y - (H - B - 4) : 0;
   if (over > 0) ends.forEach(e => e.y -= over);
@@ -2832,16 +2867,12 @@ function tlShort(e) {
 function tlRank(e) {
   return (e.first ? 0 : 10) + ({ item: 1, quest: 2, wealth: 3, kc: 4, collection: 5, clue: 6 }[e.type] || 9) - Math.min(0.9, (e.value || 0) / 1e9);
 }
-function tlgMetricBar() {
-  return `<span class="tl-grp"><span class="tl-lab">Line</span><span class="tlg-metric">${[["gain", "Levels gained"], ["level", "Total level"], ["wealth", "Wealth"]].map(([k, l]) =>
-    `<button class="${tlg.metric === k ? "on" : ""}" data-m="${k}">${l}</button>`).join("")}</span></span>`;
-}
-function tlgBindMetric(box) {
-  box.querySelectorAll(".tlg-metric [data-m]").forEach(b => b.onclick = () => {
-    tlg.metric = b.dataset.m; try { localStorage.setItem("tlMetric2", tlg.metric); } catch (e) { /* just this time */ }
-    tlg.key = ""; tlg.view = null; loadTimelineGraph();
-  });
-}
+const TLG_METRICS = [["gain", "Levels gained"], ["level", "Total level"], ["wealth", "Wealth"]];
+// The Line menu lives in the toolbar now (tlBar); these stay for the graph box's layout.
+function tlgMetricBar() { return ""; }
+function tlgBindMetric(box) { tlBar(); }
+// The Show dropdown closes on a click anywhere else.
+document.addEventListener("click", e => { const d = document.querySelector(".tl-show[open]"); if (d && !d.contains(e.target)) d.open = false; }, true); // tl-show-close
 function tlBindHead(box) { const back = $("tlBack"); if (back) back.onclick = () => { tl.player = null; loadTimeline(); }; }
 window.addEventListener("resize", () => { if (view === "timeline" && tl.mode === "graph" && $("tlgSvg")) renderTimelineGraph(); });
 // Every highscores table: a player's name opens their journey.
@@ -2906,7 +2937,10 @@ function renderHeader() {
   const up = $("updateBtn");
   if (data && data.update) {
     up.style.display = "";
-    up.textContent = data.updateIn != null ? `Updating to ${data.update} in ${data.updateIn} s…` : `Update to ${data.update}`;
+    up.textContent = data.updateIn != null ? `Updating to ${data.update} in ${data.updateIn} s…`
+      : data.updateFailed ? `Update to ${data.update} (last try failed)` : `Update to ${data.update}`;
+    // The last update didn't finish: why (BotScape.exe's update-error.log), also sent to the server's log.
+    up.title = data.updateFailed ? `The last update didn't finish: ${data.updateFailed}` : "Installs the new version and opens Bot Scape again (running scripts stop)";
   } else up.style.display = "none";
   $("mainName").textContent = data.main ? "· " + data.main : "";
   const pill = $("serverPill");

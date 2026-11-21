@@ -108,9 +108,14 @@ namespace BotScape
                 // Offline or the server is down: play what's installed. What went wrong goes in a log file
                 // (it used to go nowhere).
                 Debug.WriteLine(ex);
-                LogError("update check", ex);
-                SetStatus("Couldn't check for updates; starting anyway.");
-                await Task.Delay(800);
+                LogError("update check" + (_current != null ? " (" + _current + ")" : ""), ex);
+                // Long enough to read (user-reported 2026-11-21: the update "did nothing" and the hub came back on
+                // the old version, five times; the message was up for under a second). The hub reports the logged
+                // error to the website and shows it on its Update button.
+                SetStatus(_current != null ? "Update failed at " + Path.GetFileName(_current) + "; starting anyway." : "Couldn't check for updates; starting anyway.");
+                _detail.ForeColor = Color.FromArgb(229, 83, 75);
+                _detail.Text = Reason(ex);
+                await Task.Delay(4000);
             }
             // --update-only: just update (testing, or an installer step), no hub.
             if (_args.Contains("--update-only"))
@@ -124,6 +129,17 @@ namespace BotScape
 
         private void SetStatus(string text) => _status.Text = text;
 
+        private string _current;   // the file being downloaded, for the error message
+
+        /// <summary>The innermost exception's message: an HttpRequestException alone only says "An error occurred
+        /// while sending the request", the inner one says why (a proxy, antivirus, a closed connection...).</summary>
+        private static string Reason(Exception ex)
+        {
+            var parts = new List<string>();
+            for (var e = ex; e != null; e = e.InnerException) parts.Add(e.GetType().Name + ": " + e.Message);
+            return string.Join(" <- ", parts);
+        }
+
         /// <summary>launcher/update-error.log: what an update couldn't do, for finding out why.</summary>
         private static void LogError(string what, Exception ex)
         {
@@ -131,7 +147,7 @@ namespace BotScape
             {
                 var log = Path.Combine(Program.Root, "launcher", "update-error.log");
                 Directory.CreateDirectory(Path.GetDirectoryName(log));
-                File.AppendAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {what}: {ex.GetType().Name}: {ex.Message}{Environment.NewLine}");
+                File.AppendAllText(log, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {what}: {Reason(ex)}{Environment.NewLine}");
             }
             catch { }
         }
@@ -159,6 +175,8 @@ namespace BotScape
                 }).ToList();
                 if (todo.Count == 0)
                 {
+                    // All files already match: the version number must too, or the hub keeps offering this update.
+                    File.WriteAllText(versionFile, manifest.version);
                     SetStatus("BotScape Hub " + manifest.version + " is up to date.");
                     _bar.Value = 100;
                     await Task.Delay(300);
@@ -172,6 +190,7 @@ namespace BotScape
                 foreach (var f in todo)
                 {
                     SetStatus($"Updating to {manifest.version}: {Path.GetFileName(f.path)}");
+                    _current = f.path;
                     var url = f.url ?? manifest.@base.TrimEnd('/') + "/" +
                               string.Join("/", f.path.Split('/').Select(Uri.EscapeDataString)) + "?v=" + Uri.EscapeDataString(f.id);
                     var local = Local(f.path);
@@ -215,6 +234,7 @@ namespace BotScape
                     installed[f.path] = f.id;
                     File.WriteAllText(installedFile, json.Serialize(installed));
                 }
+                _current = null;
                 // Done (a file still in use waits for the next update; the hub's own files are never in use here).
                 File.WriteAllText(versionFile, manifest.version);
                 SetStatus("Updated to BotScape Hub " + manifest.version + ".");

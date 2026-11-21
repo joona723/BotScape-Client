@@ -266,6 +266,7 @@ def update_check_loop():
     (running scripts carry over, game clients reopen)."""
     while True:
         check_update()
+        report_failed_update()
         if UPDATE["latest"] and recently_tried(UPDATE["latest"]):
             # The updater already ran for this version and we're still on the old one: it failed. No new attempt for
             # a while (user-reported 2026-11-13: Open-HUB.bat looped update -> "Couldn't check for updates" -> update);
@@ -298,6 +299,46 @@ def recently_tried(version):
         return tried.get("version") == version and time.time() - tried.get("at", 0) < 30 * 60
     except (OSError, ValueError):
         return False
+
+
+UPDATE_ERROR_LOG = ROOT / "launcher" / "update-error.log"
+
+
+def report_failed_update():
+    """The hub was closed for an update but opened again on the old version: BotScape.exe didn't finish it. Its error
+    (launcher/update-error.log) is shown on the Update button and sent once to the website's log (the server's
+    .data/reports/hub-updates.log). User-reported 2026-11-21: a player clicked Update five times, each time the
+    hub came back on the old version with no sign of why."""
+    try:
+        tried = json.loads(UPDATE_ATTEMPT_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not tried.get("version") or tried.get("version") == installed_version():
+        UPDATE["failed"] = None
+        return
+    errors = []
+    try:
+        for line in UPDATE_ERROR_LOG.read_text(encoding="utf-8", errors="replace").splitlines()[-200:]:
+            try:
+                when = time.mktime(time.strptime(line[:19], "%Y-%m-%d %H:%M:%S"))
+            except ValueError:
+                continue
+            if when >= tried.get("at", 0) - 5:
+                errors.append(line[19:].strip())
+    except OSError:
+        pass
+    UPDATE["failed"] = errors[-1] if errors else "BotScape.exe didn't finish the update (it logged no error)."
+    if tried.get("reported") or not zazuosu_token():
+        return
+    answer = website("POST", "api/update-report", {
+        "version": tried.get("version"), "installed": installed_version(), "tries": tried.get("tries", 1),
+        "errors": [e[:500] for e in errors[-10:]], "folder": str(ROOT)[:200]}, timeout=10)
+    if not answer.get("error"):
+        tried["reported"] = True
+        try:
+            UPDATE_ATTEMPT_FILE.write_text(json.dumps(tried), encoding="utf-8")
+        except OSError:
+            pass
 
 
 def git_update_now():
@@ -348,7 +389,12 @@ def update_now(_body):
     except OSError:
         pass
     try:
-        UPDATE_ATTEMPT_FILE.write_text(json.dumps({"version": UPDATE.get("latest"), "at": time.time()}), encoding="utf-8")
+        try:
+            before = json.loads(UPDATE_ATTEMPT_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            before = {}
+        tries = before.get("tries", 1) + 1 if before.get("version") == UPDATE.get("latest") else 1
+        UPDATE_ATTEMPT_FILE.write_text(json.dumps({"version": UPDATE.get("latest"), "at": time.time(), "tries": tries}), encoding="utf-8")
     except OSError:
         pass
     subprocess.Popen([str(stub)] + [a for a in sys.argv[1:]], cwd=ROOT)
@@ -1679,6 +1725,7 @@ class World:
             "editor": SETTINGS.get("editor"),
             "update": UPDATE["latest"], "version": installed_version(),
             "updateIn": max(0, int(UPDATE["applyAt"] - time.time())) if UPDATE.get("applyAt") else None,
+            "updateFailed": UPDATE.get("failed") if UPDATE["latest"] else None,
         }
         with self.lock:
             self.data = overview
