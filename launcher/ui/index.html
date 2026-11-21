@@ -45,6 +45,9 @@
     background: transparent; color: var(--muted); cursor: pointer; font-family: inherit; }
   .forum-tools button:hover { color: var(--text); }
   .forum-thread { display: grid; gap: 8px; }
+  .tlg-spin { width: 30px; height: 30px; margin: 0 auto 10px; border-radius: 50%; border: 3px solid var(--border, #3a4250);
+    border-top-color: var(--gold, #e0a83a); animation: tlg-spin .8s linear infinite; }
+  @keyframes tlg-spin { to { transform: rotate(360deg); } }
   /* Forum mentions + notifications (user-requested 2026-11-21) */
   .tab-badge { display: inline-block; min-width: 16px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: #e5534b;
     color: #fff; font-size: 11px; font-weight: 700; line-height: 16px; text-align: center; vertical-align: 1px; }
@@ -2583,6 +2586,9 @@ async function loadTimelineGraph() {
   if (tlg.loading) return;
   tlg.loading = true;
   if (key !== tlg.key) { tlg.events = []; tlg.view = null; renderTimelineGraph(); }
+  // User-reported: the first open said "Nothing to draw yet". Players without a "journey so far" get their line from
+  // the highscores, which weren't loaded unless the Highscores tab had been opened: they come along now.
+  const scores = hsData ? null : loadHiscoresQuiet().catch(() => {});
   try {
     let all = [], before = null;
     for (let page = 0; page < 5; page++) {
@@ -2600,6 +2606,7 @@ async function loadTimelineGraph() {
       const w = await tlWealthFetch(g ? "group=" + encodeURIComponent(g.toLowerCase()) : "top=8");
       tlg.wealth = (w && w.groups) || [];
     }
+    await scores;
     tlg.events = all; tlg.key = key; tlg.error = ""; tlg.at = Date.now();
   } catch (e) { tlg.error = e.message || "Server offline"; }
   tlg.loading = false;
@@ -2662,7 +2669,7 @@ function renderTimelineGraph() {
   const { series, more } = tlSeries();
   if (!series.length) {
     // The metric switch stays, so an empty level graph can still go to the wealth one (and back).
-    box.innerHTML = tlHead() + `<div class="tlg-tools">${tlgMetricBar()}</div><div class="empty"><h3>${tlg.loading ? "Loading…" : "Nothing to draw yet"}</h3>${tlg.loading ? ""
+    box.innerHTML = tlHead() + `<div class="tlg-tools">${tlgMetricBar()}</div><div class="empty">${tlg.loading ? `<div class="tlg-spin"></div>` : ""}<h3>${tlg.loading ? "Loading the timeline…" : "Nothing to draw yet"}</h3>${tlg.loading ? "<div>Reading everyone's levels, quests and kills.</div>"
       : tlg.metric === "wealth" ? "<div>Each group's total wealth is recorded every 10 minutes.</div>" : "<div>Levels, quests and kills show up here as they happen.</div>"}</div>`;
     tlgBindMetric(box);
     return tlBindHead(box);
